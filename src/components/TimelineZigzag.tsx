@@ -80,6 +80,21 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
   const year  = match.date.slice(0, 4);
   const month = new Date(`${match.date}T00:00:00`).toLocaleDateString("zh-CN", { month: "long" });
 
+  // ── Auto-derive MVP and result from playerScores when available ─────────────
+  // players[0] is assumed to be the recorder; if their score is highest → win.
+  const sortedScores = match.playerScores
+    ? [...match.playerScores].sort((a, b) => b.score - a.score)
+    : [];
+  const autoMvp    = sortedScores[0]?.player;
+  const displayMvp = match.mvp ?? autoMvp;   // manual override takes priority
+
+  const recorderName   = match.players?.[0];
+  const recorderScore  = sortedScores.find(s => s.player === recorderName)?.score;
+  const autoResult     = recorderScore !== undefined
+    ? (recorderScore === sortedScores[0]?.score ? "win" : "loss") as "win" | "loss"
+    : match.result;
+  const displayResult  = match.playerScores?.length ? autoResult : match.result;
+
   const textSide = (
     <div className="entry-text flex items-center justify-center w-full h-full"
       style={{ padding: "clamp(2rem, 4vw, 4rem)" }}>
@@ -137,8 +152,8 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
                 border: "1px solid rgba(255,255,255,0.08)",
               }}>
               <span className="tabular-nums">{match.scoreUs} · {match.scoreThem}</span>
-              <span style={{ color: match.result === "win" ? "var(--accent)" : "#f87171" }}>
-                {match.result === "win" ? "胜" : "负"}
+              <span style={{ color: displayResult === "win" ? "var(--accent)" : "#f87171" }}>
+                {displayResult === "win" ? "胜" : "负"}
               </span>
               {match.opponent && <span>vs {match.opponent}</span>}
             </div>
@@ -161,9 +176,9 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
             <p className="text-xs tracking-wide" style={{ color: "var(--muted)" }}>
               {match.players.join("　")}
             </p>
-            {match.mvp && (
+            {displayMvp && (
               <p className="text-xs" style={{ color: "var(--accent)" }}>
-                MVP · {match.mvp}
+                MVP · {displayMvp}
               </p>
             )}
           </div>
