@@ -10,7 +10,7 @@
       "result": "win",
       "gamesPlayed": 3,
       "gamesWon": 2,
-      "caption": "扳回一城!第三局后段连追 5 分,网前小球终于有感觉了。老张的反手过渡稳得离谱。",
+      "caption": "扳回一城！第三局后段连追 5 分，网前小球终于有感觉了。老张的反手过渡稳得离谱，那个后场跳杀打到对面根本没反应。",
       "players": ["阿明", "小K", "老张"],
       "mvp": "老张",
       "media": [
@@ -18,6 +18,16 @@
           "type": "image",
           "url": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1600&q=80",
           "thumb": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=70"
+        },
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1617083934693-1004ad8eff24?w=1200&q=80",
+          "thumb": "https://images.unsplash.com/photo-1617083934693-1004ad8eff24?w=400&q=70"
+        },
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=1200&q=80",
+          "thumb": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&q=70"
         }
       ]
     },
@@ -31,10 +41,41 @@
       "result": "loss",
       "gamesPlayed": 3,
       "gamesWon": 1,
-      "caption": "本赛季第一场双打夜。后场高远球终于到位了,决胜局 19-21 惜败,但值了。",
+      "caption": "本赛季第一场双打夜。后场高远球终于到位了，决胜局 19-21 惜败，但值了。散场之后在球馆外站了好久，舍不得走。",
       "players": ["阿明", "小K"],
       "mvp": "阿明",
-      "media": []
+      "media": [
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=1600&q=80",
+          "thumb": "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=600&q=70"
+        }
+      ]
+    },
+    {
+      "id": "2026-05-15-night-session",
+      "date": "2026-05-15",
+      "weekday": "周五",
+      "opponent": "Night Owls",
+      "scoreUs": 21,
+      "scoreThem": 9,
+      "result": "win",
+      "gamesPlayed": 2,
+      "gamesWon": 2,
+      "caption": "夜场打球，灯光昏黄，球馆里只有我们几个人。那种感觉很奇妙，有点像电影里的画面。赢得很轻松，但更开心的是之后一起吃夜宵。",
+      "players": ["阿明", "小K", "老张", "大刘"],
+      "media": [
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1540539234-c14a20fb7c7b?w=1600&q=80",
+          "thumb": "https://images.unsplash.com/photo-1540539234-c14a20fb7c7b?w=600&q=70"
+        },
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&q=80",
+          "thumb": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70"
+        }
+      ]
     }
   ]
 }
