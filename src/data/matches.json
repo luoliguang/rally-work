@@ -1,0 +1,40 @@
+{
+  "matches": [
+    {
+      "id": "2026-06-04-riverside-smashers",
+      "date": "2026-06-04",
+      "weekday": "周四",
+      "opponent": "Riverside Smashers",
+      "scoreUs": 21,
+      "scoreThem": 18,
+      "result": "win",
+      "gamesPlayed": 3,
+      "gamesWon": 2,
+      "caption": "扳回一城!第三局后段连追 5 分,网前小球终于有感觉了。老张的反手过渡稳得离谱。",
+      "players": ["阿明", "小K", "老张"],
+      "mvp": "老张",
+      "media": [
+        {
+          "type": "image",
+          "url": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1600&q=80",
+          "thumb": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=70"
+        }
+      ]
+    },
+    {
+      "id": "2026-05-30-flying-dudes",
+      "date": "2026-05-30",
+      "weekday": "周五",
+      "opponent": "Flying Dudes",
+      "scoreUs": 19,
+      "scoreThem": 21,
+      "result": "loss",
+      "gamesPlayed": 3,
+      "gamesWon": 1,
+      "caption": "本赛季第一场双打夜。后场高远球终于到位了,决胜局 19-21 惜败,但值了。",
+      "players": ["阿明", "小K"],
+      "mvp": "阿明",
+      "media": []
+    }
+  ]
+}
