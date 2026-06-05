@@ -16,18 +16,8 @@
       "media": [
         {
           "type": "image",
-          "url": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1600&q=80",
-          "thumb": "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=70"
-        },
-        {
-          "type": "image",
-          "url": "https://images.unsplash.com/photo-1617083934693-1004ad8eff24?w=1200&q=80",
-          "thumb": "https://images.unsplash.com/photo-1617083934693-1004ad8eff24?w=400&q=70"
-        },
-        {
-          "type": "image",
-          "url": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=1200&q=80",
-          "thumb": "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&q=70"
+          "url": "/images/01.jpg",
+          "thumb": "/images/01.jpg"
         }
       ]
     },
