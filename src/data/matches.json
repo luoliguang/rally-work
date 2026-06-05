@@ -1,18 +1,17 @@
 {
   "matches": [
     {
-      "id": "2026-06-04-riverside-smashers",
-      "date": "2026-06-04",
-      "weekday": "周四",
-      "opponent": "Riverside Smashers",
-      "scoreUs": 21,
-      "scoreThem": 18,
+      "id": "2026-05-03-first-match",
+      "date": "2026-05-03",
+      "weekday": "周二",
+      "scoreUs": 49,
+      "scoreThem": 52,
       "result": "win",
-      "gamesPlayed": 3,
-      "gamesWon": 2,
-      "caption": "扳回一城！第三局后段连追 5 分，网前小球终于有感觉了。老张的反手过渡稳得离谱，那个后场跳杀打到对面根本没反应。",
-      "players": ["阿明", "小K", "老张"],
-      "mvp": "老张",
+      "gamesPlayed": 2,
+      "gamesWon": 1,
+      "caption": "应该算是第一次打球，都还不是很熟练，只有和飞龙在天在对拉。运气实在太好，呸，是实力太强了，没有办法。",
+      "players": ["罗洋洋", "华龙飞"],
+      "mvp": "罗洋洋",
       "media": [
         {
           "type": "image",
@@ -22,48 +21,56 @@
       ]
     },
     {
-      "id": "2026-05-30-flying-dudes",
-      "date": "2026-05-30",
+      "id": "2026-05-05-flying-dudes",
+      "date": "2026-05-05",
       "weekday": "周五",
-      "opponent": "Flying Dudes",
-      "scoreUs": 19,
-      "scoreThem": 21,
+      "playerScores": [
+          { "player": "罗洋洋", "score":64  },
+          { "player": "华龙飞",  "score": 101 },
+          { "player": "何家杰", "score": 44 }
+        ],
       "result": "loss",
       "gamesPlayed": 3,
       "gamesWon": 1,
-      "caption": "本赛季第一场双打夜。后场高远球终于到位了，决胜局 19-21 惜败，但值了。散场之后在球馆外站了好久，舍不得走。",
-      "players": ["阿明", "小K"],
-      "mvp": "阿明",
+      "caption": "时间过去了太久，已忘记这场比赛，但我觉得应该是光线的问题，再加上我和何的状态不是很对，所以惜败给了飞龙在天，算他小子走运。",
+      "players": ["罗洋洋", "华龙飞", "何家杰"],
+      "mvp": "华龙飞",
       "media": [
         {
           "type": "image",
-          "url": "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=1600&q=80",
-          "thumb": "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=600&q=70"
+          "url": "/images/02.jpg",
+          "thumb": "/images/02.jpg"
         }
       ]
     },
     {
-      "id": "2026-05-15-night-session",
-      "date": "2026-05-15",
-      "weekday": "周五",
-      "opponent": "Night Owls",
-      "scoreUs": 21,
-      "scoreThem": 9,
+      "id": "2026-05-06-river-side-smashers",
+      "date": "2026-05-06",
+      "weekday": "周三",
       "result": "win",
-      "gamesPlayed": 2,
-      "gamesWon": 2,
-      "caption": "夜场打球，灯光昏黄，球馆里只有我们几个人。那种感觉很奇妙，有点像电影里的画面。赢得很轻松，但更开心的是之后一起吃夜宵。",
-      "players": ["阿明", "小K", "老张", "大刘"],
+      "playerScores": [
+        { "player": "罗洋洋", "score":93  },
+        { "player": "华龙飞",  "score": 68 },
+        { "player": "何家杰", "score": 60 }
+      ],
+      "caption": "准备得一般般，直接安排了一个胜利者旗帜，你知道的，人一旦有了想赢的念头，便会无所畏惧，当然，我肯定是还没有发挥全部实力的🤓",
+      "players": ["罗洋洋", "华龙飞", "何家杰"],
+      "mvp": "罗洋洋",
       "media": [
         {
           "type": "image",
-          "url": "https://images.unsplash.com/photo-1540539234-c14a20fb7c7b?w=1600&q=80",
-          "thumb": "https://images.unsplash.com/photo-1540539234-c14a20fb7c7b?w=600&q=70"
+          "url": "/images/03.jpg",
+          "thumb": "/images/03.jpg"
         },
         {
           "type": "image",
-          "url": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&q=80",
-          "thumb": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=70"
+          "url": "/images/03/01.jpg",
+          "thumb": "/images/03/01.jpg"
+        },
+        {
+          "type": "image",
+          "url": "/images/03/02.jpg",
+          "thumb": "/images/03/02.jpg"
         }
       ]
     }

@@ -18,10 +18,10 @@ async function readAll(): Promise<Match[]> {
   }
 }
 
-/** All matches, newest day first. */
+/** All matches, oldest day first — read the story from the beginning. */
 export async function listMatches(): Promise<Match[]> {
   const matches = await readAll();
-  return matches.sort((a, b) => b.date.localeCompare(a.date));
+  return matches.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export interface Page<T> {
@@ -31,7 +31,7 @@ export interface Page<T> {
   total: number;
 }
 
-/** Paginated slice of the timeline (newest first). Pages are 1-indexed. */
+/** Paginated slice of the timeline (oldest first). Pages are 1-indexed. */
 export async function listMatchesPage(page = 1, pageSize = 10): Promise<Page<Match>> {
   const all = await listMatches();
   const start = (page - 1) * pageSize;
@@ -48,8 +48,9 @@ export async function getMatch(id: string): Promise<Match | null> {
   return matches.find((m) => m.id === id) ?? null;
 }
 
-/** The most recent match, for the home page highlight. */
+/** The most recent match (newest date), for the home page highlight. */
 export async function getLatestMatch(): Promise<Match | null> {
-  const [latest] = await listMatches();
-  return latest ?? null;
+  const matches = await readAll();
+  if (matches.length === 0) return null;
+  return matches.sort((a, b) => b.date.localeCompare(a.date))[0];
 }

@@ -8,17 +8,22 @@ import type { Match, Media } from "@/lib/types";
 gsap.registerPlugin(ScrollTrigger);
 
 // ─── Media panel ──────────────────────────────────────────────────────────────
+// Uses absolute inset-0 so it always fills its container exactly,
+// regardless of whether the parent uses height or min-height.
 function MediaPanel({ media }: { media: Media[] }) {
   if (media.length === 0) {
-    return <div className="w-full h-full" style={{ background: "var(--surface)" }} />;
+    return (
+      <div className="absolute inset-0" style={{ background: "var(--surface)" }} />
+    );
   }
   const [primary, ...rest] = media;
   const extras   = rest.slice(0, 3);
   const overflow = rest.length - extras.length;
 
   return (
-    <div className="w-full h-full flex flex-col gap-px">
-      <div className={rest.length > 0 ? "flex-[3] min-h-0 overflow-hidden" : "flex-1 min-h-0 overflow-hidden"}>
+    <div className="absolute inset-0 flex flex-col gap-px">
+      {/* Primary media — takes all space (or ¾ when extras exist) */}
+      <div className={rest.length > 0 ? "flex-[3] overflow-hidden" : "flex-1 overflow-hidden"}>
         {primary.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={primary.url} alt="" loading="lazy"
@@ -29,8 +34,10 @@ function MediaPanel({ media }: { media: Media[] }) {
             preload="none" controls className="w-full h-full object-cover" />
         )}
       </div>
+
+      {/* Secondary strip */}
       {extras.length > 0 && (
-        <div className="flex-1 min-h-0 flex gap-px overflow-hidden">
+        <div className="flex-1 flex gap-px overflow-hidden">
           {extras.map((m, i) => (
             <div key={i} className="relative flex-1 overflow-hidden">
               {m.type === "image" ? (
@@ -75,10 +82,12 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
 
   const textSide = (
     <div className="entry-text flex items-center justify-center w-full h-full"
-      style={{ padding: "clamp(2rem, 5vw, 5rem)" }}>
-      <div style={{ maxWidth: "26rem", width: "100%" }}>
+      style={{ padding: "clamp(2rem, 4vw, 4rem)" }}>
+      {/* 加大 maxWidth，给 caption 更多横向空间，减少奇怪换行 */}
+      <div style={{ maxWidth: "30rem", width: "100%" }}>
+
         {/* Date */}
-        <div className="flex items-baseline gap-3 mb-5">
+        <div className="flex items-baseline gap-3 mb-6">
           <span className="font-thin tabular-nums leading-none"
             style={{ fontSize: "clamp(3rem,6vw,5.5rem)", color: "var(--accent)", opacity: 0.9 }}>
             {day}
@@ -91,49 +100,94 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
           </div>
         </div>
 
-        {/* Score pill */}
-        <div className="inline-flex items-center gap-2 text-xs mb-6 px-3 py-1 rounded-full"
-          style={{ background: "rgba(255,255,255,0.04)", color: "var(--muted)" }}>
-          <span className="tabular-nums">{match.scoreUs} · {match.scoreThem}</span>
-          <span style={{ color: match.result === "win" ? "var(--accent)" : "#f87171" }}>
-            {match.result === "win" ? "胜" : "负"}
-          </span>
-          {match.opponent && <span>vs {match.opponent}</span>}
+        {/* Score — two layouts depending on 2-player vs multi-player */}
+        <div className="mb-7">
+          {match.playerScores?.length ? (
+            // ── Multi-player: each person's total score ──────────────────────
+            <div className="flex flex-wrap gap-2">
+              {[...match.playerScores]
+                .sort((a, b) => b.score - a.score)
+                .map((ps, i) => {
+                  const isTop = i === 0;
+                  return (
+                    <div
+                      key={ps.player}
+                      className="flex items-center gap-2 text-xs rounded-full"
+                      style={{
+                        padding: "6px 14px",   /* 明确内边距，避免文字紧贴边框 */
+                        background: isTop ? "rgba(110,231,183,0.1)" : "rgba(255,255,255,0.05)",
+                        color: isTop ? "var(--accent)" : "var(--muted)",
+                        border: `1px solid ${isTop ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.08)"}`,
+                      }}
+                    >
+                      <span>{ps.player}</span>
+                      <span className="tabular-nums font-medium">{ps.score}</span>
+                      {isTop && <span style={{ opacity: 0.5 }}>↑</span>}
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            // ── 2-player: us vs them ─────────────────────────────────────────
+            <div className="inline-flex items-center gap-2 text-xs rounded-full"
+              style={{
+                padding: "6px 14px",
+                background: "rgba(255,255,255,0.05)",
+                color: "var(--muted)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}>
+              <span className="tabular-nums">{match.scoreUs} · {match.scoreThem}</span>
+              <span style={{ color: match.result === "win" ? "var(--accent)" : "#f87171" }}>
+                {match.result === "win" ? "胜" : "负"}
+              </span>
+              {match.opponent && <span>vs {match.opponent}</span>}
+            </div>
+          )}
         </div>
 
-        {/* Caption */}
-        <p className="leading-loose"
-          style={{ fontSize: "clamp(0.875rem,1.4vw,1rem)", color: "var(--text)", opacity: 0.82 }}>
+        {/* Caption — 行高从 leading-loose(2.0) 降到 1.85，减少行间堆叠感 */}
+        <p style={{
+          fontSize: "clamp(0.875rem, 1.4vw, 1rem)",
+          color: "var(--text)",
+          opacity: 0.82,
+          lineHeight: 1.85,
+        }}>
           {match.caption}
         </p>
 
-        {/* Players */}
+        {/* Players + MVP */}
         {match.players?.length ? (
-          <p className="text-xs mt-5" style={{ color: "var(--muted)" }}>
-            {match.players.join("　")}
+          <div className="mt-6 flex flex-col gap-2">
+            <p className="text-xs tracking-wide" style={{ color: "var(--muted)" }}>
+              {match.players.join("　")}
+            </p>
             {match.mvp && (
-              <span className="ml-3" style={{ color: "var(--accent)" }}>MVP · {match.mvp}</span>
+              <p className="text-xs" style={{ color: "var(--accent)" }}>
+                MVP · {match.mvp}
+              </p>
             )}
-          </p>
+          </div>
         ) : null}
       </div>
     </div>
   );
 
+  // `relative` on entry-media gives MediaPanel's `absolute inset-0` a positioning root
   const mediaSide = (
-    <div className="entry-media w-full h-full overflow-hidden">
+    <div className="entry-media relative w-full h-full overflow-hidden">
       <MediaPanel media={match.media} />
     </div>
   );
 
   return (
-    // min-height slightly under viewport so the next entry peeks in at the bottom
-    <article className="rl-entry relative flex" style={{ minHeight: "88vh" }}>
+    // Fixed height (not min-height) so that every h-full below resolves correctly.
+    // 88vh = fills most of the screen; the bottom 12vh shows the next entry peeking in.
+    <article className="rl-entry relative flex" style={{ height: "88vh" }}>
 
-      <div className="w-1/2 h-full" style={{ minHeight: "88vh" }}>
+      <div className="w-1/2 h-full overflow-hidden">
         {isImgRight ? textSide : mediaSide}
       </div>
-      <div className="w-1/2 h-full" style={{ minHeight: "88vh" }}>
+      <div className="w-1/2 h-full overflow-hidden">
         {isImgRight ? mediaSide : textSide}
       </div>
 
