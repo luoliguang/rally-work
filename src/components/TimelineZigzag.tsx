@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Match, Media } from "@/lib/types";
+import { ReactionBar } from "./ReactionBar";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -183,6 +184,9 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
             )}
           </div>
         ) : null}
+
+        {/* 表情反应 */}
+        <ReactionBar matchId={match.id} />
       </div>
     </div>
   );
@@ -275,7 +279,7 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
       cancelAnimationFrame(raf);
       ScrollTrigger.getAll().forEach(t => t.kill());
     };
-  }, [matches.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [matches.length]);
 
   if (matches.length === 0) {
     return (
