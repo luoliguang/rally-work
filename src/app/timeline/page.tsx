@@ -2,6 +2,9 @@ import Link from "next/link";
 import { listMatches } from "@/lib/matches";
 import { MatchCard } from "@/components/MatchCard";
 
+// 每次请求读最新数据，后台改动即时生效
+export const dynamic = "force-dynamic";
+
 // Timeline: every match, newest first. Keep this data area light — thumbnails
 // only, no heavy media. Add "load more" pagination when the list grows (README §6/§8).
 export default async function TimelinePage() {
