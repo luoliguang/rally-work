@@ -9,20 +9,14 @@ interface Comment {
   created_at: string;
 }
 
-function timeAgo(iso: string): string {
-  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60)  return "刚刚";
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-  return `${Math.floor(diff / 86400)} 天前`;
-}
+const LANES = 4;            // 弹幕轨道数
+const DURATION_BASE = 18;   // 基准飘行时长（秒）
 
 export function CommentWall() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [nickname, setNickname] = useState("");
   const [content,  setContent]  = useState("");
   const [status,   setStatus]   = useState<"idle"|"sending"|"done"|"error">("idle");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     fetch("/api/comments")
@@ -49,108 +43,176 @@ export function CommentWall() {
     }
   }
 
+  // 把留言分配到各轨道，循环复用保证每条轨道都有内容
+  const lanes: Comment[][] = Array.from({ length: LANES }, () => []);
+  comments.forEach((c, i) => lanes[i % LANES].push(c));
+
   return (
-    <section style={{ borderTop: "1px solid var(--border)", padding: "clamp(3rem,6vw,5rem) clamp(1.5rem,4vw,3rem)" }}>
-      <div style={{ maxWidth: "54rem", margin: "0 auto" }}>
+    <section
+      style={{
+        borderTop: "1px solid var(--border)",
+        padding: "clamp(3.5rem,7vw,6rem) 0 clamp(3rem,5vw,4rem)",
+      }}
+    >
+      {/* 标题 */}
+      <div
+        style={{
+          maxWidth: "60rem",
+          margin: "0 auto clamp(2rem,4vw,3rem)",
+          padding: "0 clamp(1.5rem,4vw,3rem)",
+          textAlign: "center",
+        }}
+      >
+        <h3
+          className="font-extralight uppercase"
+          style={{ fontSize: "clamp(1.3rem,3vw,1.8rem)", letterSpacing: "0.2em", color: "var(--text)" }}
+        >
+          留言墙
+        </h3>
+        <p className="mt-3" style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+          你也是这段故事的一部分
+        </p>
+      </div>
 
-        {/* 标题 */}
-        <div className="flex items-baseline gap-4 mb-8">
-          <h3 className="font-extralight tracking-widest uppercase"
-            style={{ fontSize: "clamp(1rem,2vw,1.2rem)", color: "var(--text)" }}>
-            留言墙
-          </h3>
-          <span className="text-xs" style={{ color: "var(--muted)" }}>
-            你也是这段故事的一部分
-          </span>
+      {/* ── 弹幕带 ────────────────────────────────────────────────────────────── */}
+      {comments.length > 0 ? (
+        <div
+          className="danmaku-wall"
+          style={{
+            position: "relative",
+            height: `${LANES * 3}rem`,
+            overflow: "hidden",
+            marginBottom: "clamp(2.5rem,5vw,3.5rem)",
+            maskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)",
+            WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)",
+          }}
+        >
+          {lanes.map((lane, laneIdx) =>
+            lane.map((c, i) => {
+              // 同轨道内错开起始时间，速度略有差异
+              const delay    = -(i * (DURATION_BASE / Math.max(lane.length, 1))) - laneIdx * 2;
+              const duration = DURATION_BASE + (laneIdx % 2) * 4 + (c.content.length > 20 ? 4 : 0);
+              return (
+                <div
+                  key={`${laneIdx}-${c.id}`}
+                  className="danmaku-item"
+                  style={{
+                    position: "absolute",
+                    top: `${laneIdx * 3}rem`,
+                    left: 0,
+                    whiteSpace: "nowrap",
+                    animation: `danmaku-scroll ${duration}s linear infinite`,
+                    animationDelay: `${delay}s`,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      padding: "0.45rem 1.1rem",
+                      borderRadius: "999px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid var(--border)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent)", fontWeight: 500 }}>{c.nickname}</span>
+                    <span style={{ color: "var(--text)", opacity: 0.85 }}>{c.content}</span>
+                  </span>
+                </div>
+              );
+            })
+          )}
         </div>
+      ) : (
+        <p
+          className="text-center"
+          style={{ fontSize: "0.85rem", color: "var(--muted)", opacity: 0.5, marginBottom: "clamp(2.5rem,5vw,3.5rem)" }}
+        >
+          还没有留言，来说第一句话吧
+        </p>
+      )}
 
-        {/* 投稿区 */}
-        <div className="mb-10 rounded-xl overflow-hidden"
-          style={{ border: "1px solid var(--border)", background: "rgba(255,255,255,0.02)" }}>
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            maxLength={300}
-            rows={3}
-            placeholder="留下你想说的话…（最多 300 字，需审核后显示）"
-            className="w-full resize-none bg-transparent outline-none text-sm"
+      {/* ── 输入框 ────────────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: "36rem", margin: "0 auto", padding: "0 clamp(1.5rem,4vw,3rem)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.4rem 0.4rem 0.4rem 1.1rem",
+            borderRadius: "999px",
+            border: "1px solid var(--border)",
+            background: "rgba(255,255,255,0.03)",
+          }}
+        >
+          <input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            maxLength={50}
+            placeholder="昵称"
             style={{
-              padding: "1rem 1.25rem",
-              color: "var(--text)",
-              lineHeight: 1.7,
+              width: "5rem",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "var(--muted)",
+              fontSize: "0.82rem",
+              flexShrink: 0,
             }}
           />
-          <div className="flex items-center justify-between px-4 pb-3 gap-3"
-            style={{ borderTop: "1px solid var(--border)" }}>
-            <input
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={50}
-              placeholder="昵称（可不填）"
-              className="bg-transparent outline-none text-xs flex-1"
-              style={{ color: "var(--muted)" }}
-            />
-            <div className="flex items-center gap-3">
-              <span className="text-xs" style={{ color: "var(--muted)", opacity: 0.5 }}>
-                {content.length}/300
-              </span>
-              <button
-                onClick={submit}
-                disabled={!content.trim() || status === "sending"}
-                className="text-xs rounded-full px-4 py-1.5 transition-all"
-                style={{
-                  background: content.trim() ? "var(--accent)" : "rgba(255,255,255,0.06)",
-                  color: content.trim() ? "#07090e" : "var(--muted)",
-                  cursor: content.trim() ? "pointer" : "default",
-                  border: "none",
-                  fontWeight: 500,
-                }}
-              >
-                {status === "sending" ? "提交中…" : "提交"}
-              </button>
-            </div>
-          </div>
+          <div style={{ width: 1, height: "1.2rem", background: "var(--border)" }} />
+          <input
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            maxLength={300}
+            placeholder="留下你想说的话…"
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              color: "var(--text)",
+              fontSize: "0.88rem",
+            }}
+          />
+          <button
+            onClick={submit}
+            disabled={!content.trim() || status === "sending"}
+            style={{
+              flexShrink: 0,
+              padding: "0.5rem 1.3rem",
+              borderRadius: "999px",
+              border: "none",
+              background: content.trim() ? "var(--accent)" : "rgba(255,255,255,0.06)",
+              color: content.trim() ? "#07090e" : "var(--muted)",
+              fontSize: "0.82rem",
+              fontWeight: 500,
+              cursor: content.trim() ? "pointer" : "default",
+              transition: "background 0.2s",
+            }}
+          >
+            {status === "sending" ? "发送中" : "发送"}
+          </button>
         </div>
 
         {/* 状态提示 */}
-        {status === "done" && (
-          <p className="text-xs mb-6" style={{ color: "var(--accent)" }}>
-            🙏 留言已提交，等待审核后显示
-          </p>
-        )}
-        {status === "error" && (
-          <p className="text-xs mb-6" style={{ color: "#f87171" }}>
-            提交失败，请稍后重试
-          </p>
-        )}
-
-        {/* 已审核留言 */}
-        {comments.length === 0 ? (
-          <p className="text-xs text-center py-8" style={{ color: "var(--muted)", opacity: 0.5 }}>
-            还没有留言，来说第一句话吧
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {comments.map((c) => (
-              <div key={c.id}
-                className="rounded-xl p-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--text)", opacity: 0.85 }}>
-                  {c.content}
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>
-                    {c.nickname}
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--muted)", opacity: 0.5 }}>
-                    · {timeAgo(c.created_at)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "0.9rem",
+            fontSize: "0.75rem",
+            height: "1rem",
+            color: status === "error" ? "#f87171" : "var(--accent)",
+            opacity: status === "done" || status === "error" ? 0.9 : 0,
+            transition: "opacity 0.3s",
+          }}
+        >
+          {status === "done"  && "🙏 留言已提交，审核后将在弹幕中飘过"}
+          {status === "error" && "提交失败，请稍后重试"}
+        </p>
       </div>
     </section>
   );

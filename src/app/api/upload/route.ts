@@ -32,10 +32,12 @@ export async function POST(req: Request) {
   // 生成唯一文件名
   const filename = `${randomUUID()}${ext}`;
 
-  // 上传目录：优先使用环境变量，否则写到 public/uploads（开发用）
-  const uploadDir =
-    process.env.UPLOAD_DIR ??
-    path.join(process.cwd(), "public", "uploads");
+  // 上传目录：默认写到「当前项目根」下的 public/uploads。
+  // process.cwd() 在本地和服务器上都自动指向项目根，无需硬编码绝对路径。
+  // 仅当确实要自定义存储位置时才设置 UPLOAD_DIR（相对路径会基于项目根解析）。
+  const uploadDir = process.env.UPLOAD_DIR?.trim()
+    ? path.resolve(process.cwd(), process.env.UPLOAD_DIR.trim())
+    : path.join(process.cwd(), "public", "uploads");
 
   await mkdir(uploadDir, { recursive: true });
 

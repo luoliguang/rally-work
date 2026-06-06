@@ -19,3 +19,54 @@ body  {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
+
+/* ── 弹幕留言墙 ─────────────────────────────────────────────── */
+@keyframes danmaku-scroll {
+  from { transform: translateX(100vw); }
+  to   { transform: translateX(-100%); }
+}
+
+/* 鼠标悬停整个弹幕带时，暂停所有弹幕，方便阅读 */
+.danmaku-wall:hover .danmaku-item {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .danmaku-item { animation: none !important; }
+}
+
+/* ── 后台表单控件统一暗色样式 ──────────────────────────────── */
+/* 日期选择器：暗色日历 + 高亮图标 */
+input[type="date"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) sepia(1) saturate(3) hue-rotate(100deg);
+  cursor: pointer;
+  opacity: 0.6;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* 下拉框：去掉原生箭头，换成自定义 + 暗色选项 */
+select.rl-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%236ee7b7' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px !important;
+  cursor: pointer;
+}
+select.rl-select option {
+  background: #0d1017;
+  color: #dde1e9;
+}
+
+/* 数字输入框：去掉上下箭头（更简洁） */
+input[type="number"].rl-num::-webkit-inner-spin-button,
+input[type="number"].rl-num::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

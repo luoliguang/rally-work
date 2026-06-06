@@ -10,7 +10,10 @@
       "gamesPlayed": 2,
       "gamesWon": 1,
       "caption": "应该算是第一次打球，都还不是很熟练，只有和飞龙在天在对拉。运气实在太好，呸，是实力太强了，没有办法。",
-      "players": ["罗洋洋", "华龙飞"],
+      "players": [
+        "罗洋洋",
+        "华龙飞"
+      ],
       "mvp": "罗洋洋",
       "media": [
         {
@@ -25,15 +28,28 @@
       "date": "2026-05-05",
       "weekday": "周五",
       "playerScores": [
-          { "player": "罗洋洋", "score":64  },
-          { "player": "华龙飞",  "score": 101 },
-          { "player": "何家杰", "score": 44 }
-        ],
+        {
+          "player": "罗洋洋",
+          "score": 64
+        },
+        {
+          "player": "华龙飞",
+          "score": 101
+        },
+        {
+          "player": "何家杰",
+          "score": 44
+        }
+      ],
       "result": "loss",
       "gamesPlayed": 3,
       "gamesWon": 1,
       "caption": "时间过去了太久，已忘记这场比赛，但我觉得应该是光线的问题，再加上我和何的状态不是很对，所以惜败给了飞龙在天，算他小子走运。",
-      "players": ["罗洋洋", "华龙飞", "何家杰"],
+      "players": [
+        "罗洋洋",
+        "华龙飞",
+        "何家杰"
+      ],
       "mvp": "华龙飞",
       "media": [
         {
@@ -49,12 +65,25 @@
       "weekday": "周三",
       "result": "win",
       "playerScores": [
-        { "player": "罗洋洋", "score":93  },
-        { "player": "华龙飞",  "score": 68 },
-        { "player": "何家杰", "score": 60 }
+        {
+          "player": "罗洋洋",
+          "score": 93
+        },
+        {
+          "player": "华龙飞",
+          "score": 68
+        },
+        {
+          "player": "何家杰",
+          "score": 60
+        }
       ],
       "caption": "准备得一般般，直接安排了一个胜利者旗帜，你知道的，人一旦有了想赢的念头，便会无所畏惧，当然，我肯定是还没有发挥全部实力的🤓",
-      "players": ["罗洋洋", "华龙飞", "何家杰"],
+      "players": [
+        "罗洋洋",
+        "华龙飞",
+        "何家杰"
+      ],
       "mvp": "罗洋洋",
       "media": [
         {
@@ -71,6 +100,41 @@
           "type": "image",
           "url": "/images/03/02.jpg",
           "thumb": "/images/03/02.jpg"
+        }
+      ]
+    },
+    {
+      "id": "2026-06-08-351d54",
+      "date": "2026-06-08",
+      "weekday": "周一",
+      "playerScores": [
+        {
+          "player": "罗洋洋",
+          "score": 89
+        },
+        {
+          "player": "华龙飞",
+          "score": 35
+        },
+        {
+          "player": "何家杰",
+          "score": 26
+        }
+      ],
+      "result": "win",
+      "gamesPlayed": 1,
+      "gamesWon": 1,
+      "caption": "今天的比赛没有照片，只是在下楼时简单的拍摄了球拍，有时候记录确实蛮少，有点可惜。",
+      "players": [
+        "罗洋洋",
+        "华龙飞",
+        "何家杰"
+      ],
+      "media": [
+        {
+          "type": "image",
+          "url": "/uploads/c63f22d6-79b0-4d90-8983-5529916bd161.jpg",
+          "thumb": "/uploads/c63f22d6-79b0-4d90-8983-5529916bd161.jpg"
         }
       ]
     }

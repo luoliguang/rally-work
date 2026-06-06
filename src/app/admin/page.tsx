@@ -312,7 +312,7 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
               <input type="number" value={f.scoreThem} onChange={e => set("scoreThem", e.target.value)} style={S.field} />
             </Field>
             <Field l="胜负">
-              <select value={f.result} onChange={e => set("result", e.target.value as "win"|"loss")} style={S.field}>
+              <select className="rl-select" value={f.result} onChange={e => set("result", e.target.value as "win"|"loss")} style={S.field}>
                 <option value="win">胜</option>
                 <option value="loss">负</option>
               </select>
@@ -381,11 +381,14 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
 }
 
 /* ══════════════════════════════════════════════════════════════ matches tab ═══ */
+const PAGE_SIZE = 10;
+
 function MatchesTab() {
   const [matches,  setMatches]  = useState<Match[]>([]);
   const [editing,  setEditing]  = useState<Match | null | "new">(null);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState("");
+  const [page,     setPage]     = useState(1);
 
   useEffect(() => {
     fetch("/api/admin/matches")
@@ -416,13 +419,17 @@ function MatchesTab() {
     m.players?.some(p => p.includes(search))
   );
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageItems  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   if (loading) return <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>加载中…</p>;
 
   return (
     <>
       {/* Toolbar */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="搜索日期 / 文案 / 队友…"
+        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="搜索日期 / 文案 / 队友…"
           style={{ ...S.field, flex: 1, maxWidth: 320 }} />
         <span style={{ fontSize: "0.72rem", color: "var(--muted)", whiteSpace: "nowrap" }}>{filtered.length} 条</span>
         <button onClick={() => setEditing("new")} style={{ ...S.btn(true), padding: "7px 18px", whiteSpace: "nowrap" }}>
@@ -436,7 +443,7 @@ function MatchesTab() {
       )}
 
       {/* List */}
-      {filtered.map(m => (
+      {pageItems.map(m => (
         <div key={m.id}>
           {/* Edit form inline */}
           {editing && editing !== "new" && (editing as Match).id === m.id && (
@@ -493,6 +500,40 @@ function MatchesTab() {
         <p style={{ color: "var(--muted)", fontSize: "0.78rem", textAlign: "center", padding: "2rem" }}>
           {search ? "没有匹配的记录" : "还没有任何记录"}
         </p>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 20 }}>
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={safePage === 1}
+            style={{ ...S.btn(), padding: "5px 12px", opacity: safePage === 1 ? 0.4 : 1, cursor: safePage === 1 ? "default" : "pointer" }}
+          >
+            ←
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              style={{
+                ...S.btn(p === safePage),
+                padding: "5px 11px",
+                minWidth: 32,
+                fontWeight: p === safePage ? 600 : 400,
+              }}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={safePage === totalPages}
+            style={{ ...S.btn(), padding: "5px 12px", opacity: safePage === totalPages ? 0.4 : 1, cursor: safePage === totalPages ? "default" : "pointer" }}
+          >
+            →
+          </button>
+        </div>
       )}
     </>
   );
