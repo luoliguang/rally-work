@@ -1,12 +1,42 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Match, Media } from "@/lib/types";
 import { ReactionBar } from "./ReactionBar";
 
 gsap.registerPlugin(ScrollTrigger);
+
+// 生成一条穿过所有圆点的「不规则手绘感」路径。
+// 坐标系：viewBox 为 0 0 100 (n*100)，第 i 个圆点位于 (50, i*100+50)。
+// 相邻圆点之间用带轻微抖动的两段贝塞尔曲线连接，形成自然的左右摆动。
+function seededJitter(seed: number): number {
+  const x = Math.sin(seed * 99.13) * 43758.5453;
+  return (x - Math.floor(x)) * 2 - 1; // -1 ~ 1，确定性（每次渲染一致）
+}
+
+// 用「真实像素」坐标生成路径：w/h 为容器宽高，圆点在 (w/2, (i+0.5)*h/n)。
+// 像素坐标系下 getTotalLength / 虚线 / 箭头定位全部同一单位，不会错位。
+function buildConnectorPath(n: number, w: number, h: number): string {
+  if (n < 2 || w === 0) return "";
+  const cx  = w / 2;
+  const eh  = h / n;
+  const amp = Math.min(w * 0.06, 18);          // 摆动幅度（像素）
+  const dotY = (i: number) => i * eh + eh / 2;
+
+  let d = `M ${cx} ${dotY(0)}`;
+  for (let i = 1; i < n; i++) {
+    const y0 = dotY(i - 1);
+    const y1 = dotY(i);
+    const midY = (y0 + y1) / 2;
+    const j1 = seededJitter(i * 3 + 1) * amp;
+    const j2 = seededJitter(i * 3 + 2) * amp;
+    d += ` Q ${cx + j1} ${y0 + eh * 0.25}, ${cx + j1 * 0.4} ${midY}`;
+    d += ` Q ${cx - j2} ${y1 - eh * 0.25}, ${cx} ${y1}`;
+  }
+  return d;
+}
 
 // ─── Media panel ──────────────────────────────────────────────────────────────
 // Uses absolute inset-0 so it always fills its container exactly,
@@ -213,9 +243,7 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
         {textSide}
       </div>
 
-      {/* 中线 + 圆点：仅桌面显示 */}
-      <div className="hidden md:block absolute inset-y-0 pointer-events-none"
-        style={{ left: "50%", width: "1px", background: "var(--border)" }} />
+      {/* 圆点：仅桌面显示（z-20，盖在虚线之上） */}
       <div className="hidden md:block absolute pointer-events-none z-20"
         style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}>
         <div className="entry-dot">
@@ -232,6 +260,77 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
 // ─── Main export ───────────────────────────────────────────────────────────────
 export function TimelineZigzag({ matches }: { matches: Match[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const snakeRef     = useRef<SVGPathElement>(null);
+  const arrowRef     = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 }); // 容器像素尺寸，路径据此用真实坐标绘制
+
+  // 测量容器尺寸（挂载 + 窗口变化时），让 SVG 用真实像素坐标系
+  useEffect(() => {
+    const measure = () => {
+      const el = containerRef.current;
+      if (el) setDims({ w: el.clientWidth, h: el.clientHeight });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [matches.length]);
+
+  // ── 滚动驱动的「蛇形」线段 + 箭头 ───────────────────────────────────────────
+  useEffect(() => {
+    if (matches.length < 2 || dims.w === 0) return;
+    if (!window.matchMedia("(min-width: 768px)").matches) return; // 仅桌面
+
+    const container = containerRef.current;
+    const snake     = snakeRef.current;
+    const arrow     = arrowRef.current;
+    if (!container || !snake || !arrow) return;
+
+    const n = matches.length;
+    const total    = snake.getTotalLength();     // 像素长度（viewBox = 真实像素）
+    const snakeLen = total * 0.16;               // 蛇身最大长度（约 1.5 个场次）
+    const GAP      = total * 2;                  // 间隔远大于路径长，杜绝虚线绕回产生「幽灵段」
+
+    let raf = 0;
+    let lastY = window.scrollY;
+    let dir   = 1;                               // 1=向下，-1=向上
+
+    const render = () => {
+      raf = 0;
+      const rect = container.getBoundingClientRect();
+      const eh   = rect.height / n;
+      const firstDotTop = rect.top + eh / 2;     // 第一个圆点距视口顶部
+      const span = (n - 1) * eh || 1;
+      let p = (window.innerHeight / 2 - firstDotTop) / span;
+      p = Math.max(0, Math.min(1, p));
+
+      // 蛇头领跑：head 从 0（第一个圆点）走到 total（最后一个圆点）
+      const head = p * total;
+      const vis  = Math.min(snakeLen, head);     // 蛇身从 0 长到 snakeLen，再保持
+      snake.style.strokeDasharray  = `${vis} ${GAP}`;
+      snake.style.strokeDashoffset = `${-(head - vis)}`;
+
+      // 蛇头（箭头）位置 —— 像素坐标系下 getPointAtLength 直接就是像素
+      const pt  = snake.getPointAtLength(head);
+      const pt2 = snake.getPointAtLength(Math.min(total, head + 1));
+      let angle = Math.atan2(pt2.y - pt.y, pt2.x - pt.x) * 180 / Math.PI;
+      if (dir < 0) angle += 180;                 // 向上滚 → 箭头反向朝上
+      arrow.style.transform = `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) rotate(${angle}deg)`;
+      arrow.style.opacity = p < 0.999 ? "1" : "0";
+    };
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y !== lastY) dir = y > lastY ? 1 : -1;
+      lastY = y;
+      if (!raf) raf = requestAnimationFrame(render);
+    };
+
+    render();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [matches.length, dims]);
 
   useEffect(() => {
     // Kill existing triggers (handles React 19 Strict Mode double-invoke)
@@ -292,10 +391,65 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
   }
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} style={{ position: "relative" }}>
       {matches.map((match, i) => (
         <EntryRow key={match.id} match={match} index={i} />
       ))}
+
+      {/* 不规则虚线 + 滚动蛇形线段（仅桌面显示） */}
+      {matches.length > 1 && dims.w > 0 && (() => {
+        const d = buildConnectorPath(matches.length, dims.w, dims.h);
+        return (
+          <>
+            <svg
+              className="hidden md:block"
+              aria-hidden
+              viewBox={`0 0 ${dims.w} ${dims.h}`}
+              style={{
+                position: "absolute", inset: 0,
+                width: "100%", height: "100%",
+                zIndex: 15, pointerEvents: "none",
+              }}
+            >
+              {/* 底层：静态不规则虚线（轨道） */}
+              <path
+                d={d}
+                fill="none"
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth={1.4}
+                strokeDasharray="1 7"
+                strokeLinecap="round"
+              />
+              {/* 上层：随滚动前移的发光蛇身 */}
+              <path
+                ref={snakeRef}
+                d={d}
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth={2.4}
+                strokeLinecap="round"
+                style={{ filter: "drop-shadow(0 0 4px rgba(110,231,183,0.7))" }}
+              />
+            </svg>
+
+            {/* 蛇头：箭头，随滚动沿路径下窜 */}
+            <div
+              ref={arrowRef}
+              className="hidden md:block"
+              style={{
+                position: "absolute", top: 0, left: 0, zIndex: 16,
+                pointerEvents: "none", opacity: 0, willChange: "transform",
+                filter: "drop-shadow(0 0 6px rgba(110,231,183,0.8))",
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                {/* 默认指向右（+X），由 rotate 跟随路径切线方向 */}
+                <path d="M5 5 L16 11 L5 17 Z" fill="var(--accent)" />
+              </svg>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }
