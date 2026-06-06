@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 import { hashIp, getClientIp } from "@/lib/ipHash";
 
-const ALLOWED_EMOJIS = ["❤️", "🔥", "💪", "😂"] as const;
+const ALLOWED_EMOJIS = ["🏸", "👏", "🏆", "😅"] as const;
 
 // GET /api/reactions/[matchId]
 // 返回该条记忆的各表情计数 + 当前访客已点的表情列表

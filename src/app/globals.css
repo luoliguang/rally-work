@@ -20,6 +20,18 @@ body  {
   overflow-x: hidden;
 }
 
+/* ── 响应式：时间线 + footer ────────────────────────────────── */
+/* 时间线每条记录：手机上下堆叠、自然高度；桌面左右分栏、满屏高 */
+.rl-entry { min-height: auto; }
+.rl-media-wrap { height: 56vh; }            /* 手机：图片固定高度 */
+.footer-left  { border-bottom: 1px solid var(--border); }
+
+@media (min-width: 768px) {
+  .rl-entry { height: 88vh; }
+  .rl-media-wrap { height: 100%; }
+  .footer-left { border-bottom: none; border-right: 1px solid var(--border); }
+}
+
 /* ── 弹幕留言墙 ─────────────────────────────────────────────── */
 @keyframes danmaku-scroll {
   from { transform: translateX(100vw); }

@@ -2,17 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 
-const EMOJIS = ["❤️", "🔥", "💪", "😂"] as const;
+const EMOJIS = ["🏸", "👏", "🏆", "😅"] as const;
 type Emoji = (typeof EMOJIS)[number];
 
 interface EmojiData { count: number; mine: boolean }
 type ReactionMap = Record<Emoji, EmojiData>;
 
 const DEFAULT: ReactionMap = {
-  "❤️": { count: 0, mine: false },
-  "🔥": { count: 0, mine: false },
-  "💪": { count: 0, mine: false },
-  "😂": { count: 0, mine: false },
+  "🏸": { count: 0, mine: false },
+  "👏": { count: 0, mine: false },
+  "🏆": { count: 0, mine: false },
+  "😅": { count: 0, mine: false },
 };
 
 export function ReactionBar({ matchId }: { matchId: string }) {

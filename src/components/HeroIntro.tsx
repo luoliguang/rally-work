@@ -130,10 +130,10 @@ export function HeroIntro({ totalMatches }: { totalMatches: number }) {
             fontSize: "clamp(0.8rem, 1.4vw, 0.92rem)",
           }}
         >
-          <p>工厂的日子忙碌，时间总是不够用。</p>
-          <p className="mt-1">但我们总能找到彼此，挤出那一两个小时来这里。</p>
+          <p>进厂的日子总是忙碌，时间也总不够用。</p>
+          <p className="mt-1">但我们总能挤出那吃饭的三十四分钟打一会羽毛球。</p>
           <p className="mt-3" style={{ color: "var(--accent)", opacity: 0.9 }}>
-            能在这里相遇，一起挥拍，很难得。
+            能在这里相遇，一起挥拍，倍感荣幸。
           </p>
         </div>
 

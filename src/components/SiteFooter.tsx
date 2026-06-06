@@ -21,23 +21,18 @@ export function SiteFooter({ matches }: { matches: Match[] }) {
   return (
     <footer style={{ borderTop: "1px solid var(--border)" }}>
 
-      {/* ── 主体：50 / 50 视觉等重分栏 ─────────────────────────────────────── */}
-      <div className="flex" style={{ minHeight: "52vh" }}>
+      {/* ── 主体：桌面左右分栏，手机上下堆叠 ───────────────────────────────── */}
+      <div className="flex flex-col md:flex-row" style={{ minHeight: "52vh" }}>
 
-        {/* 左列：RALLY 充满列高，与右侧内容等重 */}
+        {/* 左列 / 上块：RALLY 大字 */}
         <div
-          className="flex flex-col items-center justify-center"
-          style={{
-            width: "50%",
-            borderRight: "1px solid var(--border)",
-            padding: "clamp(3rem, 5vw, 5rem) clamp(2rem, 4vw, 4rem)",
-          }}
+          className="footer-left flex flex-col items-center justify-center w-full md:w-1/2"
+          style={{ padding: "clamp(2.5rem, 5vw, 5rem) clamp(1.5rem, 4vw, 4rem)" }}
         >
-          {/* 字号拉大，让字母视觉上"填满"左列 */}
           <h2
             className="font-extralight uppercase text-center"
             style={{
-              fontSize: "clamp(4rem, 10vw, 9rem)",
+              fontSize: "clamp(3rem, 14vw, 9rem)",
               letterSpacing: "0.22em",
               whiteSpace: "nowrap",
               color: "var(--text)",
@@ -47,109 +42,62 @@ export function SiteFooter({ matches }: { matches: Match[] }) {
           >
             Rally
           </h2>
-          <div
-            style={{
-              marginTop: "clamp(1.2rem, 2.5vw, 2rem)",
-              width: "2.5rem",
-              height: "1px",
-              background: "var(--accent)",
-            }}
-          />
+          <div style={{ marginTop: "clamp(1.2rem, 2.5vw, 2rem)", width: "2.5rem", height: "1px", background: "var(--accent)" }} />
         </div>
 
-        {/* 右列：内容紧凑居中，与左侧大字等重 */}
+        {/* 右列 / 下块：文案 + 统计 */}
         <div
-          className="flex flex-col justify-center"
-          style={{
-            width: "50%",
-            padding: "clamp(3rem, 5vw, 5rem) clamp(2.5rem, 5vw, 5rem)",
-          }}
+          className="flex flex-col justify-center w-full md:w-1/2"
+          style={{ padding: "clamp(2.5rem, 5vw, 5rem) clamp(1.5rem, 5vw, 5rem)" }}
         >
-          {/* 情感文案 */}
-          <p
-            style={{
-              color: "var(--muted)",
-              fontSize: "clamp(0.85rem, 1.3vw, 0.95rem)",
-              lineHeight: 1.95,
-            }}
-          >
+          <p style={{ color: "var(--muted)", fontSize: "clamp(0.85rem, 1.3vw, 0.95rem)", lineHeight: 1.95 }}>
             生命中总是充满着离别，我想我们也是。有人总说，同事是不能去处成朋友的，但在我或者我们这里，这句话好像并不奏效？亦或者，在最初我们便筛选了不想与之交流之人。
             <br />
             我有时会想，如果有一天我们不再联系，是否还会记得彼此。我想答案是肯定的，因为我们的记忆中总是充满了彼此的影子。
             <br />
             尽管有些漫长，有的短暂，感谢相遇。
-            <br />
           </p>
 
-          <p
-            style={{
-              marginTop: "1.25rem",
-              color: "var(--accent)",
-              fontSize: "clamp(0.85rem, 1.3vw, 0.95rem)",
-              opacity: 0.9,
-            }}
-          >
+          <p style={{ marginTop: "1.25rem", color: "var(--accent)", fontSize: "clamp(0.85rem, 1.3vw, 0.95rem)", opacity: 0.9 }}>
             愿这份记录能让我们更珍惜那短暂的相聚。
           </p>
 
-          {/* 分割线 */}
-          <div
-            style={{
-              margin: "2rem 0",
-              height: "1px",
-              background: "var(--border)",
-            }}
-          />
+          <div style={{ margin: "2rem 0", height: "1px", background: "var(--border)" }} />
 
-          {/* 统计数据：横排紧凑，不撑高右列 */}
           {total > 0 && (
             <div className="flex flex-wrap gap-x-8 gap-y-3">
               <div className="flex items-baseline gap-2">
-                <span
-                  className="tabular-nums font-light"
-                  style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", color: "var(--accent)" }}
-                >
+                <span className="tabular-nums font-light" style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", color: "var(--accent)" }}>
                   {total}
                 </span>
-                <span className="text-xs tracking-wider" style={{ color: "var(--muted)" }}>
-                  场记录
-                </span>
+                <span className="text-xs tracking-wider" style={{ color: "var(--muted)" }}>场记录</span>
               </div>
-
               {players.size > 0 && (
                 <div className="flex items-baseline gap-2">
-                  <span
-                    className="tabular-nums font-light"
-                    style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", color: "var(--text)", opacity: 0.6 }}
-                  >
+                  <span className="tabular-nums font-light" style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", color: "var(--text)", opacity: 0.6 }}>
                     {players.size}
                   </span>
-                  <span className="text-xs tracking-wider" style={{ color: "var(--muted)" }}>
-                    位队友
-                  </span>
+                  <span className="text-xs tracking-wider" style={{ color: "var(--muted)" }}>位队友</span>
                 </div>
               )}
             </div>
           )}
 
           {dateRange && (
-            <p
-              className="text-xs tracking-wider mt-3"
-              style={{ color: "var(--muted)", opacity: 0.5 }}
-            >
+            <p className="text-xs tracking-wider mt-3" style={{ color: "var(--muted)", opacity: 0.5 }}>
               {dateRange}
             </p>
           )}
         </div>
       </div>
 
-      {/* ── 底部署名条 ───────────────────────────────────────────────────────── */}
+      {/* ── 底部署名条（提高可读性） ─────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-center py-5 text-xs tracking-widest"
+        className="flex items-center justify-center text-xs tracking-widest"
         style={{
           borderTop: "1px solid var(--border)",
-          color: "var(--muted)",
-          opacity: 0.35,
+          color: "rgba(221,225,233,0.5)",
+          padding: "1.4rem 1rem",
         }}
       >
         Rally · 记录关于我们的羽毛球时光

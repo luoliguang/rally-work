@@ -199,23 +199,24 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
   );
 
   return (
-    // Fixed height (not min-height) so that every h-full below resolves correctly.
-    // 88vh = fills most of the screen; the bottom 12vh shows the next entry peeking in.
-    <article className="rl-entry relative flex" style={{ height: "88vh" }}>
+    // 手机：上下堆叠（图片在上、文字在下），自然高度
+    // 桌面：左右分栏、满屏高，按 index 交替左右（rl-entry 的高度由 CSS 媒体查询控制）
+    <article className="rl-entry relative flex flex-col md:flex-row">
 
-      <div className="w-1/2 h-full overflow-hidden">
-        {isImgRight ? textSide : mediaSide}
-      </div>
-      <div className="w-1/2 h-full overflow-hidden">
-        {isImgRight ? mediaSide : textSide}
+      {/* 图片：手机永远在上（order-1）；桌面按交替排布 */}
+      <div className={`rl-media-wrap w-full md:w-1/2 overflow-hidden order-1 ${isImgRight ? "md:order-2" : "md:order-1"}`}>
+        {mediaSide}
       </div>
 
-      {/* Vertical divider */}
-      <div className="absolute inset-y-0 pointer-events-none"
+      {/* 文字：手机在下（order-2）；桌面按交替排布 */}
+      <div className={`w-full md:w-1/2 md:h-full overflow-hidden order-2 ${isImgRight ? "md:order-1" : "md:order-2"}`}>
+        {textSide}
+      </div>
+
+      {/* 中线 + 圆点：仅桌面显示 */}
+      <div className="hidden md:block absolute inset-y-0 pointer-events-none"
         style={{ left: "50%", width: "1px", background: "var(--border)" }} />
-
-      {/* Centre dot — positioning wrapper never GSAP-animated */}
-      <div className="absolute pointer-events-none z-20"
+      <div className="hidden md:block absolute pointer-events-none z-20"
         style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}>
         <div className="entry-dot">
           <div className="w-2.5 h-2.5 rounded-full" style={{
