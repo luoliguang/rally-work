@@ -1,33 +1,15 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import pool from "./db";
 import type { Match } from "./types";
 
-// File-based JSON store — the single source of truth for match data.
-// There is no database; this file *is* the database. Swap the helpers below
-// for a real DB (or SQLite, see README §12) when the project grows.
-// matches.json 是运行时数据（后台增删改），不进 git。
-// 全新部署若还没有它，则回退读取随仓库一起的种子文件 matches.example.json。
-const DATA_FILE = path.join(process.cwd(), "src", "data", "matches.json");
-const SEED_FILE = path.join(process.cwd(), "src", "data", "matches.example.json");
-
-async function readAll(): Promise<Match[]> {
-  for (const file of [DATA_FILE, SEED_FILE]) {
-    try {
-      const raw = await fs.readFile(file, "utf8");
-      const parsed = JSON.parse(raw) as { matches: Match[] };
-      return parsed.matches ?? [];
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // 试下一个
-      throw err;
-    }
-  }
-  return [];
-}
+// 比赛数据现在存在 PostgreSQL 的 matches 表（data 列为完整 Match 的 JSONB）。
+// 读写都走数据库，前端动态读取，后台改完即时生效。
 
 /** All matches, oldest day first — read the story from the beginning. */
 export async function listMatches(): Promise<Match[]> {
-  const matches = await readAll();
-  return matches.sort((a, b) => a.date.localeCompare(b.date));
+  const { rows } = await pool.query(
+    `SELECT data FROM matches ORDER BY date ASC, created_at ASC`
+  );
+  return rows.map((r) => r.data as Match);
 }
 
 export interface Page<T> {
@@ -39,24 +21,48 @@ export interface Page<T> {
 
 /** Paginated slice of the timeline (oldest first). Pages are 1-indexed. */
 export async function listMatchesPage(page = 1, pageSize = 10): Promise<Page<Match>> {
-  const all = await listMatches();
-  const start = (page - 1) * pageSize;
+  const offset = (page - 1) * pageSize;
+  const [items, count] = await Promise.all([
+    pool.query(
+      `SELECT data FROM matches ORDER BY date ASC, created_at ASC LIMIT $1 OFFSET $2`,
+      [pageSize, offset]
+    ),
+    pool.query(`SELECT COUNT(*)::int AS total FROM matches`),
+  ]);
   return {
-    items: all.slice(start, start + pageSize),
+    items: items.rows.map((r) => r.data as Match),
     page,
     pageSize,
-    total: all.length,
+    total: count.rows[0].total,
   };
 }
 
 export async function getMatch(id: string): Promise<Match | null> {
-  const matches = await readAll();
-  return matches.find((m) => m.id === id) ?? null;
+  const { rows } = await pool.query(`SELECT data FROM matches WHERE id = $1`, [id]);
+  return rows.length ? (rows[0].data as Match) : null;
 }
 
 /** The most recent match (newest date), for the home page highlight. */
 export async function getLatestMatch(): Promise<Match | null> {
-  const matches = await readAll();
-  if (matches.length === 0) return null;
-  return matches.sort((a, b) => b.date.localeCompare(a.date))[0];
+  const { rows } = await pool.query(
+    `SELECT data FROM matches ORDER BY date DESC, created_at DESC LIMIT 1`
+  );
+  return rows.length ? (rows[0].data as Match) : null;
+}
+
+// ── 写操作（供后台 API 使用）────────────────────────────────────────────────
+export async function upsertMatch(match: Match): Promise<Match> {
+  await pool.query(
+    `INSERT INTO matches (id, date, data)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (id) DO UPDATE
+       SET date = EXCLUDED.date, data = EXCLUDED.data, updated_at = NOW()`,
+    [match.id, match.date, JSON.stringify(match)]
+  );
+  return match;
+}
+
+export async function deleteMatch(id: string): Promise<boolean> {
+  const res = await pool.query(`DELETE FROM matches WHERE id = $1`, [id]);
+  return (res.rowCount ?? 0) > 0;
 }

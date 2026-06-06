@@ -41,6 +41,17 @@ INSERT INTO teammates (name, sort_order)
 SELECT * FROM (VALUES ('罗洋洋', 1), ('华龙飞', 2), ('何家杰', 3)) AS v(name, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM teammates);
 
+-- 比赛记录（核心数据，从 matches.json 迁移到这里）
+-- 完整的 Match 对象存在 data(JSONB) 里，id/date 单独列出以便排序和查询。
+CREATE TABLE IF NOT EXISTS matches (
+  id         VARCHAR(255) PRIMARY KEY,
+  date       DATE         NOT NULL,
+  data       JSONB        NOT NULL,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_reactions_match ON reactions (match_id);
 CREATE INDEX IF NOT EXISTS idx_comments_approved ON comments (is_approved, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_matches_date ON matches (date);

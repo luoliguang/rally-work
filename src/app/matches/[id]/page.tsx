@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMatch, listMatches } from "@/lib/matches";
+import { getMatch } from "@/lib/matches";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { MediaItem } from "@/components/MediaItem";
 
-// 每次请求读最新数据，新增的比赛也能即时访问详情页
+// 每次请求读最新数据（从数据库），新增的比赛也能即时访问详情页。
+// 不预生成静态页，避免构建时依赖数据库连接。
 export const dynamic = "force-dynamic";
-
-// Pre-render a detail page per match.
-export async function generateStaticParams() {
-  const matches = await listMatches();
-  return matches.map((m) => ({ id: m.id }));
-}
 
 export default async function MatchDetailPage({
   params,
