@@ -35,6 +35,12 @@ body  {
   .danmaku-item { animation: none !important; }
 }
 
+/* ── 后台成功提示 toast ────────────────────────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
 /* ── 后台表单控件统一暗色样式 ──────────────────────────────── */
 /* 日期选择器：暗色日历 + 高亮图标 */
 input[type="date"] {

@@ -28,6 +28,19 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+-- 队友名单（后台可增删改，新建比赛记录时从这里勾选）
+CREATE TABLE IF NOT EXISTS teammates (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(50) NOT NULL UNIQUE,
+  sort_order INT         NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 默认队友（仅在表为空时插入）
+INSERT INTO teammates (name, sort_order)
+SELECT * FROM (VALUES ('罗洋洋', 1), ('华龙飞', 2), ('何家杰', 3)) AS v(name, sort_order)
+WHERE NOT EXISTS (SELECT 1 FROM teammates);
+
 -- 索引
 CREATE INDEX IF NOT EXISTS idx_reactions_match ON reactions (match_id);
 CREATE INDEX IF NOT EXISTS idx_comments_approved ON comments (is_approved, created_at DESC);

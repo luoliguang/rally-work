@@ -105,8 +105,8 @@
     },
     {
       "id": "2026-06-08-351d54",
-      "date": "2026-06-08",
-      "weekday": "周一",
+      "date": "2026-05-08",
+      "weekday": "周五",
       "playerScores": [
         {
           "player": "罗洋洋",
@@ -135,6 +135,41 @@
           "type": "image",
           "url": "/uploads/c63f22d6-79b0-4d90-8983-5529916bd161.jpg",
           "thumb": "/uploads/c63f22d6-79b0-4d90-8983-5529916bd161.jpg"
+        }
+      ]
+    },
+    {
+      "id": "2026-05-07-d6c037",
+      "date": "2026-05-07",
+      "weekday": "周四",
+      "playerScores": [
+        {
+          "player": "罗洋洋",
+          "score": 89
+        },
+        {
+          "player": "华龙飞",
+          "score": 35
+        },
+        {
+          "player": "何家杰",
+          "score": 26
+        }
+      ],
+      "result": "win",
+      "gamesPlayed": 1,
+      "gamesWon": 1,
+      "caption": "打羽毛球真的好累，每天都是酣畅淋漓。使用人家的计分工具并不好用，或者说无法定制化，于是自己动手做了一个，只适配于我们。为什么一直赢呢？不记得了...",
+      "players": [
+        "罗洋洋",
+        "华龙飞",
+        "何家杰"
+      ],
+      "media": [
+        {
+          "type": "image",
+          "url": "/uploads/75530b93-37ae-428d-aaca-84084e5fb8e2.png",
+          "thumb": "/uploads/75530b93-37ae-428d-aaca-84084e5fb8e2.png"
         }
       ]
     }

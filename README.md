@@ -49,15 +49,22 @@ npm run dev
 
 ---
 
-## 数据库初始化（宝塔面板）
+## 数据库初始化
 
-1. 在宝塔面板 → 数据库 → 添加 PostgreSQL 数据库，记录用户名/密码/库名
-2. 进入 PostgreSQL 终端，执行 `src/lib/schema.sql` 中的建表语句
-3. 将连接字符串填入 `.env.local`：
+1. 创建一个 PostgreSQL 数据库（宝塔面板 → 数据库 → 添加 PostgreSQL，或本地 pgAdmin），记录用户名/密码/库名
+2. 把连接字符串填入 `.env`（或 `.env.local`）：
 
 ```
 DATABASE_URL=postgresql://rally_user:your_password@localhost:5432/rally_db
 ```
+
+3. **一键建表**（推荐）——脚本会读取 `src/lib/schema.sql` 并执行，幂等可重复运行：
+
+```bash
+npm run db:init
+```
+
+> 成功后会打印已建的表和默认队友名单。也可手动在数据库终端执行 `src/lib/schema.sql`。
 
 ### 数据库表结构
 
@@ -65,6 +72,7 @@ DATABASE_URL=postgresql://rally_user:your_password@localhost:5432/rally_db
 visits    -- 访问记录（IP 哈希 + 日期，去重防刷）
 reactions -- 表情反应（❤️ 🔥 💪 😂，每位访客每种限一次）
 comments  -- 留言墙（需管理员审核后才显示）
+teammates -- 队友名单（后台可增删改，新建记录时勾选）
 ```
 
 ---

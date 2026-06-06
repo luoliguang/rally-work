@@ -47,6 +47,155 @@ function Field({ l, children }: { l: string; children: React.ReactNode }) {
   return <div><label style={S.label}>{l}</label>{children}</div>;
 }
 
+/* ─────────────────────────────── 自定义日期选择器（完全自绘，暗色主题）─── */
+const CAL_WEEK = ["一", "二", "三", "四", "五", "六", "日"];
+
+function DatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState(() => (value ? new Date(`${value}T00:00:00`) : new Date()));
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const year  = view.getFullYear();
+  const month = view.getMonth();
+  const start = (new Date(year, month, 1).getDay() + 6) % 7; // 周一为首列
+  const days  = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array(start).fill(null),
+    ...Array.from({ length: days }, (_, i) => i + 1),
+  ];
+
+  const fmt = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  const today = new Date();
+  const todayStr = fmt(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const pick = (d: number) => { onChange(fmt(year, month, d)); setOpen(false); };
+  const shiftMonth = (n: number) => setView(new Date(year, month + n, 1));
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      {/* 触发器 */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ ...S.field, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}
+      >
+        <span style={{ color: value ? "var(--text)" : "var(--muted)", opacity: value ? 1 : 0.5 }}>
+          {value || "选择日期"}
+        </span>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+          <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="var(--accent)" strokeWidth="1.2" />
+          <path d="M2 6h12M5.5 1.5v3M10.5 1.5v3" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {/* 弹出日历 */}
+      {open && (
+        <div
+          style={{
+            position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50,
+            width: 280, padding: 14, borderRadius: 12,
+            background: "var(--surface)", border: "1px solid var(--border)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.5)",
+          }}
+        >
+          {/* 头部：月份 + 翻月 */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: "0.85rem", color: "var(--accent)", fontWeight: 500 }}>
+              {year} 年 {month + 1} 月
+            </span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button type="button" onClick={() => shiftMonth(-1)} style={{ ...S.btn(), padding: "3px 10px" }}>‹</button>
+              <button type="button" onClick={() => shiftMonth(1)}  style={{ ...S.btn(), padding: "3px 10px" }}>›</button>
+            </div>
+          </div>
+
+          {/* 星期表头 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 4 }}>
+            {CAL_WEEK.map(w => (
+              <div key={w} style={{ textAlign: "center", fontSize: "0.68rem", color: "var(--muted)", padding: "2px 0" }}>{w}</div>
+            ))}
+          </div>
+
+          {/* 日期格子 */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+            {cells.map((d, i) => {
+              if (d === null) return <div key={i} />;
+              const ds = fmt(year, month, d);
+              const isSel = ds === value;
+              const isToday = ds === todayStr;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => pick(d)}
+                  style={{
+                    aspectRatio: "1", border: "none", borderRadius: 7, cursor: "pointer",
+                    fontSize: "0.78rem",
+                    background: isSel ? "var(--accent)" : "transparent",
+                    color: isSel ? "#07090e" : isToday ? "var(--accent)" : "var(--text)",
+                    fontWeight: isSel || isToday ? 600 : 400,
+                    outline: isToday && !isSel ? "1px solid rgba(110,231,183,0.4)" : "none",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+                  onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {d}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 底部：今天 / 清除 */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+            <button type="button" onClick={() => { onChange(""); setOpen(false); }}
+              style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "0.75rem", cursor: "pointer" }}>清除</button>
+            <button type="button" onClick={() => { onChange(todayStr); setOpen(false); }}
+              style={{ background: "none", border: "none", color: "var(--accent)", fontSize: "0.75rem", cursor: "pointer" }}>今天</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── 自定义数字步进器（替换原生上下箭头）─── */
+function NumberStepper({ value, onChange, min = 0, max }: { value: string; onChange: (v: string) => void; min?: number; max?: number }) {
+  const num = Number(value) || 0;
+  const step = (n: number) => {
+    let next = num + n;
+    if (next < min) next = min;
+    if (max !== undefined && next > max) next = max;
+    onChange(String(next));
+  };
+  const sideBtn: React.CSSProperties = {
+    width: 34, flexShrink: 0, border: "none", background: "rgba(255,255,255,0.05)",
+    color: "var(--accent)", cursor: "pointer", fontSize: "1.1rem", lineHeight: 1,
+    display: "flex", alignItems: "center", justifyContent: "center",
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", height: 38 }}>
+      <button type="button" onClick={() => step(-1)} style={sideBtn}>−</button>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value.replace(/[^\d]/g, ""))}
+        inputMode="numeric"
+        style={{ flex: 1, minWidth: 0, textAlign: "center", background: "transparent", border: "none", outline: "none", color: "var(--text)", fontSize: "0.9rem" }}
+      />
+      <button type="button" onClick={() => step(1)} style={sideBtn}>+</button>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════ login ════ */
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [pw, setPw] = useState(""); const [err, setErr] = useState("");
@@ -77,7 +226,7 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
   const [uploading, setUploading] = useState(false);
   const [drag, setDrag] = useState(false);
 
-  const uploadFiles = useCallback(async (files: FileList) => {
+  const uploadFiles = useCallback(async (files: FileList | File[]) => {
     setUploading(true);
     const results: Media[] = [];
     for (const file of Array.from(files)) {
@@ -85,13 +234,33 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
       const res  = await fetch("/api/upload", { method: "POST", body: form });
       if (res.ok) {
         const { url } = await res.json() as { url: string };
-        const isVideo = /\.(mp4|mov|webm)$/i.test(file.name);
+        const isVideo = /\.(mp4|mov|webm)$/i.test(file.name) || file.type.startsWith("video/");
         results.push(isVideo ? { type: "video", url } : { type: "image", url, thumb: url });
       }
     }
     onChange([...items, ...results]);
     setUploading(false);
   }, [items, onChange]);
+
+  // 从剪贴板直接粘贴图片（截图、复制的图片）
+  const pasteImage = useCallback(async () => {
+    try {
+      const clipItems = await navigator.clipboard.read();
+      const files: File[] = [];
+      for (const item of clipItems) {
+        const imgType = item.types.find(t => t.startsWith("image/"));
+        if (imgType) {
+          const blob = await item.getType(imgType);
+          const ext  = imgType.split("/")[1] || "png";
+          files.push(new File([blob], `pasted-${Date.now()}.${ext}`, { type: imgType }));
+        }
+      }
+      if (files.length) await uploadFiles(files);
+      else alert("剪贴板里没有图片。先截图或右键复制一张图片再粘贴。");
+    } catch {
+      alert("无法读取剪贴板，请确认浏览器已授予剪贴板权限。");
+    }
+  }, [uploadFiles]);
 
   const update = (i: number, patch: Partial<Media>) =>
     onChange(items.map((m, idx) => idx === i ? { ...m, ...patch } as Media : m));
@@ -108,6 +277,10 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
         onDragOver={e => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
         onDrop={e => { e.preventDefault(); setDrag(false); uploadFiles(e.dataTransfer.files); }}
+        onPaste={e => {
+          const imgFiles = Array.from(e.clipboardData.files).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
+          if (imgFiles.length) { e.preventDefault(); uploadFiles(imgFiles); }
+        }}
         style={{
           border: `2px dashed ${drag ? "var(--accent)" : "var(--border)"}`,
           borderRadius: 10, padding: "20px 16px", textAlign: "center",
@@ -118,12 +291,17 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
         {uploading
           ? <p style={{ fontSize: "0.78rem", color: "var(--accent)" }}>上传中…</p>
           : <>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>点击或拖拽上传图片/视频</p>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)" }}>点击、拖拽或粘贴上传图片/视频</p>
             <p style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.5, marginTop: 4 }}>jpg / png / webp / mp4 / mov，≤100 MB</p>
           </>
         }
         <input ref={inputRef} type="file" accept="image/*,video/*" multiple hidden onChange={e => e.target.files && uploadFiles(e.target.files)} />
       </div>
+
+      {/* Paste button */}
+      <button onClick={pasteImage} style={{ ...S.btn(), fontSize: "0.72rem", marginBottom: 10 }}>
+        📋 从剪贴板粘贴图片
+      </button>
 
       {/* Media list */}
       {items.map((m, i) => (
@@ -174,14 +352,17 @@ function autoWeekday(date: string) {
 interface FormState {
   id: string; date: string; mode: MatchMode;
   opponent: string; scoreUs: string; scoreThem: string; result: "win"|"loss";
-  mpScores: { player: string; score: string }[];
+  players: string[];                      // 出场队友（勾选）
+  scores: Record<string, string>;         // 多人赛：player -> 得分
   gamesPlayed: string; gamesWon: string;
-  caption: string; players: string; mvp: string;
+  caption: string; mvp: string;
   media: Media[];
 }
 
 function buildInitialForm(match?: Match): FormState {
   const hasMP = !!(match?.playerScores?.length);
+  const scores: Record<string, string> = {};
+  match?.playerScores?.forEach(p => { scores[p.player] = String(p.score); });
   return {
     id:          match?.id ?? "",
     date:        match?.date ?? "",
@@ -190,13 +371,11 @@ function buildInitialForm(match?: Match): FormState {
     scoreUs:     match?.scoreUs?.toString() ?? "",
     scoreThem:   match?.scoreThem?.toString() ?? "",
     result:      match?.result ?? "win",
-    mpScores:    hasMP
-      ? match!.playerScores!.map(p => ({ player: p.player, score: String(p.score) }))
-      : [{ player: "", score: "" }, { player: "", score: "" }],
+    players:     match?.players ?? (match?.playerScores?.map(p => p.player) ?? []),
+    scores,
     gamesPlayed: match?.gamesPlayed?.toString() ?? "1",
     gamesWon:    match?.gamesWon?.toString() ?? "1",
     caption:     match?.caption ?? "",
-    players:     match?.players?.join(", ") ?? "",
     mvp:         match?.mvp ?? "",
     media:       match?.media ?? [],
   };
@@ -210,7 +389,7 @@ function formToMatch(f: FormState): Partial<Match> {
     gamesPlayed: Number(f.gamesPlayed) || 1,
     gamesWon:    Number(f.gamesWon)    || 0,
     caption:     f.caption.trim(),
-    players:     f.players.split(/[,，\s]+/).filter(Boolean),
+    players:     f.players,
     mvp:         f.mvp.trim() || undefined,
     media:       f.media,
   };
@@ -219,9 +398,8 @@ function formToMatch(f: FormState): Partial<Match> {
     base.scoreUs   = Number(f.scoreUs)   || 0;
     base.scoreThem = Number(f.scoreThem) || 0;
   } else {
-    base.playerScores = f.mpScores
-      .filter(r => r.player.trim())
-      .map(r => ({ player: r.player.trim(), score: Number(r.score) || 0 }));
+    // 多人赛：得分行直接来自勾选的出场队友
+    base.playerScores = f.players.map(p => ({ player: p, score: Number(f.scores[p]) || 0 }));
   }
   return base;
 }
@@ -233,15 +411,49 @@ interface MatchFormProps {
 }
 
 function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
-  const [f, setF]     = useState<FormState>(() => buildInitialForm(initial));
+  const [f, setF]       = useState<FormState>(() => buildInitialForm(initial));
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState("");
+  const [roster, setRoster] = useState<string[]>([]);
+  const [newName, setNewName] = useState("");
+
+  // 加载队友名单；合并已存在于本记录但不在名单里的旧名字
+  useEffect(() => {
+    fetch("/api/admin/teammates")
+      .then(r => r.json())
+      .then((rows: { name: string }[]) => {
+        const names = rows.map(r => r.name);
+        const extra = f.players.filter(p => !names.includes(p));
+        setRoster([...names, ...extra]);
+      })
+      .catch(() => setRoster(f.players));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setF(p => ({ ...p, [k]: v }));
 
-  const setMP = (i: number, key: "player"|"score", val: string) =>
-    setF(p => ({ ...p, mpScores: p.mpScores.map((r, idx) => idx === i ? { ...r, [key]: val } : r) }));
+  // 勾选 / 取消出场队友
+  const togglePlayer = (name: string) =>
+    setF(p => p.players.includes(name)
+      ? { ...p, players: p.players.filter(n => n !== name) }
+      : { ...p, players: [...p.players, name] });
+
+  const setScore = (player: string, val: string) =>
+    setF(p => ({ ...p, scores: { ...p.scores, [player]: val } }));
+
+  // 临时添加新队友（同时存入名单，下次默认就有）
+  async function addTeammate() {
+    const name = newName.trim();
+    if (!name || roster.includes(name)) { setNewName(""); return; }
+    setRoster(r => [...r, name]);
+    setF(p => ({ ...p, players: [...p.players, name] }));
+    setNewName("");
+    fetch("/api/admin/teammates", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }).catch(() => {});
+  }
 
   async function save() {
     if (!f.date || !f.caption.trim()) { setError("日期和文案为必填项"); return; }
@@ -258,12 +470,12 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
   }
 
   return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 20, marginBottom: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-        <h3 style={{ fontWeight: 400, fontSize: "0.95rem", color: "var(--text)" }}>
-          {initial ? `编辑：${initial.date}` : "新增比赛记录"}
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h3 style={{ fontWeight: 400, fontSize: "1rem", color: "var(--text)" }}>
+          {initial ? `编辑记录 · ${initial.date}` : "新增比赛记录"}
         </h3>
-        <button onClick={onCancel} style={S.btn()}>取消</button>
+        <button onClick={onCancel} style={S.btn()}>关闭</button>
       </div>
 
       {/* Mode */}
@@ -282,19 +494,48 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
       {/* Basic */}
       <div style={S.section}>
         <p style={S.sectionTitle}>基础信息</p>
-        <Row>
+        <Row cols="180px 1fr">
           <Field l="日期 *">
-            <input type="date" value={f.date} onChange={e => set("date", e.target.value)} style={S.field} />
+            <DatePicker value={f.date} onChange={v => set("date", v)} />
           </Field>
           <Field l="星期（自动）">
-            <input readOnly value={autoWeekday(f.date)} style={{ ...S.field, opacity: 0.5 }} />
+            <div style={{ ...S.field, display: "flex", alignItems: "center", color: f.date ? "var(--accent)" : "var(--muted)", opacity: f.date ? 1 : 0.4 }}>
+              {autoWeekday(f.date) || "选择日期后自动显示"}
+            </div>
           </Field>
         </Row>
         {!initial && (
           <Field l="ID（留空自动生成）">
-            <input value={f.id} onChange={e => set("id", e.target.value)} placeholder="2026-06-10-vs-laozhang" style={{ ...S.field, marginBottom: 12 }} />
+            <input value={f.id} onChange={e => set("id", e.target.value)} placeholder="2026-06-10-vs-laozhang" style={S.field} />
           </Field>
         )}
+      </div>
+
+      {/* 出场队友（勾选） */}
+      <div style={S.section}>
+        <p style={S.sectionTitle}>出场队友</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {roster.map(name => {
+            const on = f.players.includes(name);
+            return (
+              <button key={name} onClick={() => togglePlayer(name)}
+                style={{
+                  ...S.btn(on), padding: "6px 14px",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                <span style={{ fontSize: "0.85rem" }}>{on ? "✓" : "+"}</span>
+                {name}
+              </button>
+            );
+          })}
+        </div>
+        {/* 临时新增队友 */}
+        <div style={{ display: "flex", gap: 8, maxWidth: 280 }}>
+          <input value={newName} onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addTeammate())}
+            placeholder="添加新队友…" style={{ ...S.field, fontSize: "0.78rem", padding: "6px 10px" }} />
+          <button onClick={addTeammate} style={{ ...S.btn(), whiteSpace: "nowrap" }}>添加</button>
+        </div>
       </div>
 
       {/* Score */}
@@ -306,10 +547,10 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
               <input value={f.opponent} onChange={e => set("opponent", e.target.value)} placeholder="对手名字" style={S.field} />
             </Field>
             <Field l="我方得分">
-              <input type="number" value={f.scoreUs} onChange={e => set("scoreUs", e.target.value)} style={S.field} />
+              <input type="number" className="rl-num" value={f.scoreUs} onChange={e => set("scoreUs", e.target.value)} style={S.field} />
             </Field>
             <Field l="对方得分">
-              <input type="number" value={f.scoreThem} onChange={e => set("scoreThem", e.target.value)} style={S.field} />
+              <input type="number" className="rl-num" value={f.scoreThem} onChange={e => set("scoreThem", e.target.value)} style={S.field} />
             </Field>
             <Field l="胜负">
               <select className="rl-select" value={f.result} onChange={e => set("result", e.target.value as "win"|"loss")} style={S.field}>
@@ -318,43 +559,42 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
               </select>
             </Field>
           </Row>
+        ) : f.players.length === 0 ? (
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)", opacity: 0.6, padding: "8px 0" }}>
+            先在上方勾选出场队友，这里会自动生成各人的得分行。
+          </p>
         ) : (
           <>
-            {f.mpScores.map((r, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                <input value={r.player} onChange={e => setMP(i, "player", e.target.value)} placeholder="队友姓名" style={{ ...S.field, flex: 1 }} />
-                <input type="number" value={r.score} onChange={e => setMP(i, "score", e.target.value)} placeholder="积分" style={{ ...S.field, width: 90 }} />
-                {f.mpScores.length > 2 && (
-                  <button onClick={() => setF(p => ({ ...p, mpScores: p.mpScores.filter((_, idx) => idx !== i) }))}
-                    style={{ ...S.btn(false, true), padding: "4px 10px" }}>×</button>
-                )}
+            {f.players.map(player => (
+              <div key={player} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 7 }}>
+                <span style={{ width: 90, fontSize: "0.85rem", color: "var(--text)" }}>{player}</span>
+                <input type="number" className="rl-num" value={f.scores[player] ?? ""} onChange={e => setScore(player, e.target.value)}
+                  placeholder="积分" style={{ ...S.field, width: 110 }} />
               </div>
             ))}
-            <button onClick={() => setF(p => ({ ...p, mpScores: [...p.mpScores, { player: "", score: "" }] }))}
-              style={{ ...S.btn(), marginBottom: 8 }}>+ 添加队友</button>
+            <p style={{ fontSize: "0.7rem", color: "var(--muted)", opacity: 0.5, marginTop: 4 }}>
+              MVP 与胜负将按最高分自动判定（最高分者为记录方，胜）
+            </p>
           </>
         )}
-        <Row>
-          <Field l="总场次">
-            <input type="number" value={f.gamesPlayed} onChange={e => set("gamesPlayed", e.target.value)} style={S.field} />
-          </Field>
-          <Field l="胜场">
-            <input type="number" value={f.gamesWon} onChange={e => set("gamesWon", e.target.value)} style={S.field} />
-          </Field>
-        </Row>
+        <div style={{ marginTop: 12 }}>
+          <Row>
+            <Field l="总场次">
+              <NumberStepper value={f.gamesPlayed} onChange={v => set("gamesPlayed", v)} min={0} />
+            </Field>
+            <Field l="胜场">
+              <NumberStepper value={f.gamesWon} onChange={v => set("gamesWon", v)} min={0} />
+            </Field>
+          </Row>
+        </div>
       </div>
 
-      {/* Players & Caption */}
+      {/* MVP & Caption */}
       <div style={S.section}>
-        <p style={S.sectionTitle}>队友 / 文案</p>
-        <Row>
-          <Field l="出场队友（逗号分隔）">
-            <input value={f.players} onChange={e => set("players", e.target.value)} placeholder="罗洋洋, 华龙飞" style={S.field} />
-          </Field>
-          <Field l="MVP（可选）">
-            <input value={f.mvp} onChange={e => set("mvp", e.target.value)} placeholder="留空时按得分自动计算" style={S.field} />
-          </Field>
-        </Row>
+        <p style={S.sectionTitle}>文案</p>
+        <Field l="MVP（可选，留空时多人赛按得分自动计算）">
+          <input value={f.mvp} onChange={e => set("mvp", e.target.value)} placeholder="留空自动判定" style={{ ...S.field, marginBottom: 12 }} />
+        </Field>
         <Field l="文案 *">
           <textarea value={f.caption} onChange={e => set("caption", e.target.value)} rows={4}
             style={{ ...S.field, resize: "vertical" }} />
@@ -371,10 +611,10 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
 
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={save} disabled={saving}
-          style={{ ...S.btn(true), padding: "9px 28px", fontSize: "0.85rem" }}>
+          style={{ ...S.btn(true), padding: "10px 32px", fontSize: "0.85rem" }}>
           {saving ? "保存中…" : initial ? "保存更改" : "创建记录"}
         </button>
-        <button onClick={onCancel} style={{ ...S.btn(), padding: "9px 20px" }}>取消</button>
+        <button onClick={onCancel} style={{ ...S.btn(), padding: "10px 24px" }}>取消</button>
       </div>
     </div>
   );
@@ -389,6 +629,7 @@ function MatchesTab() {
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState("");
   const [page,     setPage]     = useState(1);
+  const [toast,    setToast]    = useState("");
 
   useEffect(() => {
     fetch("/api/admin/matches")
@@ -396,19 +637,25 @@ function MatchesTab() {
       .catch(() => setLoading(false));
   }, []);
 
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2600);
+  }
+
   async function del(id: string, date: string) {
     if (!confirm(`确认删除 ${date} 的记录？`)) return;
     const res = await fetch(`/api/admin/matches/${id}`, { method: "DELETE" });
-    if (res.ok) setMatches(p => p.filter(m => m.id !== id));
+    if (res.ok) { setMatches(p => p.filter(m => m.id !== id)); showToast("已删除"); }
   }
 
   function onSave(m: Match) {
+    const isEdit = matches.some(x => x.id === m.id);
     setMatches(p => {
-      const exists = p.some(x => x.id === m.id);
-      const next   = exists ? p.map(x => x.id === m.id ? m : x) : [...p, m];
+      const next = isEdit ? p.map(x => x.id === m.id ? m : x) : [...p, m];
       return next.sort((a, b) => b.date.localeCompare(a.date));
     });
     setEditing(null);
+    showToast(isEdit ? "✓ 修改已保存" : "✓ 记录创建成功");
   }
 
   const filtered = matches.filter(m =>
@@ -437,62 +684,47 @@ function MatchesTab() {
         </button>
       </div>
 
-      {/* New form */}
-      {editing === "new" && (
-        <MatchForm onSave={onSave} onCancel={() => setEditing(null)} />
-      )}
-
-      {/* List */}
+      {/* List —— 卡片始终在顶部，表单走弹窗，不会被推下去 */}
       {pageItems.map(m => (
-        <div key={m.id}>
-          {/* Edit form inline */}
-          {editing && editing !== "new" && (editing as Match).id === m.id && (
-            <MatchForm initial={m} onSave={onSave} onCancel={() => setEditing(null)} />
-          )}
-
-          {/* Card */}
-          {!(editing && editing !== "new" && (editing as Match).id === m.id) && (
-            <div style={S.card}>
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                {/* Thumbnail */}
-                {m.media[0] && (
-                  <div style={{ width: 56, height: 56, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
-                    {m.media[0].type === "image"
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={(m.media[0] as { thumb?: string; url: string }).thumb ?? m.media[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : <div style={{ width: "100%", height: "100%", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem" }}>🎬</div>
-                    }
-                  </div>
-                )}
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.875rem" }}>{m.date}</span>
-                    {m.weekday && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{m.weekday}</span>}
-                    {m.opponent && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>vs {m.opponent}</span>}
-                    {m.playerScores && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>多人赛</span>}
-                    <span style={{ fontSize: "0.72rem", padding: "1px 8px", borderRadius: 4, background: m.result === "win" ? "rgba(110,231,183,0.1)" : "rgba(248,113,113,0.1)", color: m.result === "win" ? "var(--accent)" : "#f87171" }}>
-                      {m.result === "win" ? "胜" : "负"}
-                    </span>
-                    {m.media.length > 0 && <span style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.6 }}>📎 {m.media.length}</span>}
-                  </div>
-                  <p style={{ fontSize: "0.78rem", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {m.caption}
-                  </p>
-                  {m.players?.length ? (
-                    <p style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.6, marginTop: 3 }}>
-                      {m.players.join(" · ")}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => setEditing(m)} style={{ ...S.btn(true), padding: "4px 12px" }}>编辑</button>
-                  <button onClick={() => del(m.id, m.date)} style={{ ...S.btn(false, true), padding: "4px 12px" }}>删除</button>
-                </div>
+        <div key={m.id} style={S.card}>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            {/* Thumbnail */}
+            {m.media[0] && (
+              <div style={{ width: 56, height: 56, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+                {m.media[0].type === "image"
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={(m.media[0] as { thumb?: string; url: string }).thumb ?? m.media[0].url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <div style={{ width: "100%", height: "100%", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem" }}>🎬</div>
+                }
               </div>
+            )}
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 500, color: "var(--text)", fontSize: "0.875rem" }}>{m.date}</span>
+                {m.weekday && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{m.weekday}</span>}
+                {m.opponent && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>vs {m.opponent}</span>}
+                {m.playerScores && <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>多人赛</span>}
+                <span style={{ fontSize: "0.72rem", padding: "1px 8px", borderRadius: 4, background: m.result === "win" ? "rgba(110,231,183,0.1)" : "rgba(248,113,113,0.1)", color: m.result === "win" ? "var(--accent)" : "#f87171" }}>
+                  {m.result === "win" ? "胜" : "负"}
+                </span>
+                {m.media.length > 0 && <span style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.6 }}>📎 {m.media.length}</span>}
+              </div>
+              <p style={{ fontSize: "0.78rem", color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {m.caption}
+              </p>
+              {m.players?.length ? (
+                <p style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.6, marginTop: 3 }}>
+                  {m.players.join(" · ")}
+                </p>
+              ) : null}
             </div>
-          )}
+
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button onClick={() => setEditing(m)} style={{ ...S.btn(true), padding: "4px 12px" }}>编辑</button>
+              <button onClick={() => del(m.id, m.date)} style={{ ...S.btn(false, true), padding: "4px 12px" }}>删除</button>
+            </div>
+          </div>
         </div>
       ))}
 
@@ -533,6 +765,43 @@ function MatchesTab() {
           >
             →
           </button>
+        </div>
+      )}
+
+      {/* ── 弹窗表单 ─────────────────────────────────────────────────────────── */}
+      {editing && (
+        <div
+          onClick={() => setEditing(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)",
+            display: "flex", alignItems: "flex-start", justifyContent: "center",
+            overflowY: "auto", padding: "clamp(1rem,4vh,3rem) 1rem",
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 720 }}>
+            <MatchForm
+              initial={editing === "new" ? undefined : editing}
+              onSave={onSave}
+              onCancel={() => setEditing(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── 成功提示 Toast ───────────────────────────────────────────────────── */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed", bottom: 32, left: "50%", transform: "translateX(-50%)",
+            zIndex: 200, padding: "12px 24px", borderRadius: 999,
+            background: "var(--accent)", color: "#07090e",
+            fontSize: "0.85rem", fontWeight: 600,
+            boxShadow: "0 8px 30px rgba(110,231,183,0.3)",
+            animation: "toast-in 0.3s ease",
+          }}
+        >
+          {toast}
         </div>
       )}
     </>
