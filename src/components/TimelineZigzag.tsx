@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Match, Media } from "@/lib/types";
 import { ReactionBar } from "./ReactionBar";
+import { timelineConfig as TL } from "@/config/timeline";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -22,7 +23,7 @@ function buildConnectorPath(n: number, w: number, h: number): string {
   if (n < 2 || w === 0) return "";
   const cx  = w / 2;
   const eh  = h / n;
-  const amp = Math.min(w * 0.06, 18);          // 摆动幅度（像素）
+  const amp = Math.min(w * TL.track.wobbleRatio, TL.track.wobbleMax); // 摆动幅度（像素）
   const dotY = (i: number) => i * eh + eh / 2;
 
   let d = `M ${cx} ${dotY(0)}`;
@@ -247,9 +248,10 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
       <div className="hidden md:block absolute pointer-events-none z-20"
         style={{ left: "50%", top: "50%", transform: "translate(-50%,-50%)" }}>
         <div className="entry-dot">
-          <div className="w-2.5 h-2.5 rounded-full" style={{
-            background: "var(--accent)",
-            boxShadow: "0 0 0 4px rgba(110,231,183,0.1), 0 0 12px rgba(110,231,183,0.4)",
+          <div className="rounded-full" style={{
+            width: TL.dot.size, height: TL.dot.size,
+            background: TL.dot.color,
+            boxShadow: TL.dot.glow,
           }} />
         </div>
       </div>
@@ -278,7 +280,7 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
   // ── 滚动驱动的「蛇形」线段 + 箭头 ───────────────────────────────────────────
   useEffect(() => {
     if (matches.length < 2 || dims.w === 0) return;
-    if (!window.matchMedia("(min-width: 768px)").matches) return; // 仅桌面
+    if (!window.matchMedia(`(min-width: ${TL.breakpoint}px)`).matches) return; // 仅桌面
 
     const container = containerRef.current;
     const snake     = snakeRef.current;
@@ -287,7 +289,7 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
 
     const n = matches.length;
     const total    = snake.getTotalLength();     // 像素长度（viewBox = 真实像素）
-    const snakeLen = total * 0.16;               // 蛇身最大长度（约 1.5 个场次）
+    const snakeLen = total * TL.snake.lengthRatio; // 蛇身最大长度
     const GAP      = total * 2;                  // 间隔远大于路径长，杜绝虚线绕回产生「幽灵段」
 
     let raf = 0;
@@ -300,7 +302,7 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
       const eh   = rect.height / n;
       const firstDotTop = rect.top + eh / 2;     // 第一个圆点距视口顶部
       const span = (n - 1) * eh || 1;
-      let p = (window.innerHeight / 2 - firstDotTop) / span;
+      let p = (window.innerHeight * TL.progressAnchor - firstDotTop) / span;
       p = Math.max(0, Math.min(1, p));
 
       // 蛇头领跑：head 从 0（第一个圆点）走到 total（最后一个圆点）
@@ -313,7 +315,7 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
       const pt  = snake.getPointAtLength(head);
       const pt2 = snake.getPointAtLength(Math.min(total, head + 1));
       let angle = Math.atan2(pt2.y - pt.y, pt2.x - pt.x) * 180 / Math.PI;
-      if (dir < 0) angle += 180;                 // 向上滚 → 箭头反向朝上
+      if (TL.arrow.followScrollDirection && dir < 0) angle += 180; // 向上滚 → 箭头反向朝上
       arrow.style.transform = `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) rotate(${angle}deg)`;
       arrow.style.opacity = p < 0.999 ? "1" : "0";
     };
@@ -415,9 +417,9 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
               <path
                 d={d}
                 fill="none"
-                stroke="rgba(255,255,255,0.4)"
-                strokeWidth={1.4}
-                strokeDasharray="1 7"
+                stroke={TL.track.color}
+                strokeWidth={TL.track.width}
+                strokeDasharray={TL.track.dash}
                 strokeLinecap="round"
               />
               {/* 上层：随滚动前移的发光蛇身 */}
@@ -425,10 +427,10 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
                 ref={snakeRef}
                 d={d}
                 fill="none"
-                stroke="var(--accent)"
-                strokeWidth={2.4}
+                stroke={TL.snake.color}
+                strokeWidth={TL.snake.width}
                 strokeLinecap="round"
-                style={{ filter: "drop-shadow(0 0 4px rgba(110,231,183,0.7))" }}
+                style={{ filter: TL.snake.glow }}
               />
             </svg>
 
@@ -439,12 +441,12 @@ export function TimelineZigzag({ matches }: { matches: Match[] }) {
               style={{
                 position: "absolute", top: 0, left: 0, zIndex: 16,
                 pointerEvents: "none", opacity: 0, willChange: "transform",
-                filter: "drop-shadow(0 0 6px rgba(110,231,183,0.8))",
+                filter: TL.arrow.glow,
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <svg width={TL.arrow.size} height={TL.arrow.size} viewBox="0 0 22 22" fill="none">
                 {/* 默认指向右（+X），由 rotate 跟随路径切线方向 */}
-                <path d="M5 5 L16 11 L5 17 Z" fill="var(--accent)" />
+                <path d="M5 5 L16 11 L5 17 Z" fill={TL.arrow.color} />
               </svg>
             </div>
           </>
