@@ -1,4 +1,5 @@
 import type { Media } from "@/lib/types";
+import { mediaUrl } from "@/lib/mediaUrl";
 
 /**
  * Renders one image or video. Videos use their `poster` and only load on play
@@ -11,15 +12,15 @@ export function MediaItem({ media }: { media: Media }) {
         // Plain <img> keeps remote sources simple; switch to next/image once sources stabilize.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={media.url}
+          src={mediaUrl(media.url)}
           alt=""
           loading="lazy"
           className="h-full w-full object-cover"
         />
       ) : (
         <video
-          src={media.url}
-          poster={media.poster}
+          src={mediaUrl(media.url)}
+          poster={mediaUrl(media.poster)}
           preload="none"
           controls
           className="h-full w-full"

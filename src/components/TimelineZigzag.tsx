@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Match, Media } from "@/lib/types";
 import { ReactionBar } from "./ReactionBar";
 import { timelineConfig as TL } from "@/config/timeline";
+import { mediaUrl } from "@/lib/mediaUrl";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -58,11 +59,11 @@ function MediaPanel({ media }: { media: Media[] }) {
       <div className={rest.length > 0 ? "flex-[3] overflow-hidden" : "flex-1 overflow-hidden"}>
         {primary.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={primary.url} alt="" loading="lazy"
+          <img src={mediaUrl(primary.url)} alt="" loading="lazy"
             className="w-full h-full object-cover"
             style={{ filter: "brightness(0.85) saturate(0.88)" }} />
         ) : (
-          <video src={primary.url} poster={primary.poster}
+          <video src={mediaUrl(primary.url)} poster={mediaUrl(primary.poster)}
             preload="none" controls className="w-full h-full object-cover" />
         )}
       </div>
@@ -74,11 +75,11 @@ function MediaPanel({ media }: { media: Media[] }) {
             <div key={i} className="relative flex-1 overflow-hidden">
               {m.type === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.thumb ?? m.url} alt="" loading="lazy"
+                <img src={mediaUrl(m.thumb ?? m.url)} alt="" loading="lazy"
                   className="w-full h-full object-cover"
                   style={{ filter: "brightness(0.65) saturate(0.7)" }} />
               ) : (
-                <video src={m.url} poster={m.poster} preload="none" controls
+                <video src={mediaUrl(m.url)} poster={mediaUrl(m.poster)} preload="none" controls
                   className="w-full h-full object-cover" />
               )}
               {m.type === "video" && (

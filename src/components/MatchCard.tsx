@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Match } from "@/lib/types";
 import { ScoreBadge } from "./ScoreBadge";
+import { mediaUrl } from "@/lib/mediaUrl";
 
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
@@ -15,7 +16,8 @@ export function MatchCard({ match }: { match: Match }) {
   const thumbs = match.media
     .map((m) => (m.type === "image" ? m.thumb ?? m.url : m.poster))
     .filter((src): src is string => Boolean(src))
-    .slice(0, 4);
+    .slice(0, 4)
+    .map(mediaUrl);
 
   return (
     <article className="rounded-2xl border border-slate-700/60 bg-slate-800/40 p-5 transition hover:border-slate-600">
