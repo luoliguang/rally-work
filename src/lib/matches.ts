@@ -5,17 +5,23 @@ import type { Match } from "./types";
 // File-based JSON store — the single source of truth for match data.
 // There is no database; this file *is* the database. Swap the helpers below
 // for a real DB (or SQLite, see README §12) when the project grows.
+// matches.json 是运行时数据（后台增删改），不进 git。
+// 全新部署若还没有它，则回退读取随仓库一起的种子文件 matches.example.json。
 const DATA_FILE = path.join(process.cwd(), "src", "data", "matches.json");
+const SEED_FILE = path.join(process.cwd(), "src", "data", "matches.example.json");
 
 async function readAll(): Promise<Match[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    const parsed = JSON.parse(raw) as { matches: Match[] };
-    return parsed.matches ?? [];
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw err;
+  for (const file of [DATA_FILE, SEED_FILE]) {
+    try {
+      const raw = await fs.readFile(file, "utf8");
+      const parsed = JSON.parse(raw) as { matches: Match[] };
+      return parsed.matches ?? [];
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") continue; // 试下一个
+      throw err;
+    }
   }
+  return [];
 }
 
 /** All matches, oldest day first — read the story from the beginning. */

@@ -17,6 +17,10 @@
 # 用户上传的媒体文件（运行时生成，不进版本库）
 /public/uploads/
 
+# 比赛数据是运行时数据（后台增删改），不进版本库，避免 git pull 覆盖服务器数据。
+# 新环境首次部署时从 matches.example.json 复制一份即可。
+/src/data/matches.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*
