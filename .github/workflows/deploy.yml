@@ -34,7 +34,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: ".next"
           target: "/www/wwwroot/rally-work"
-          rm: true
 
       - name: 拉取最新代码并重启服务
         uses: appleboy/ssh-action@v1.0.3
