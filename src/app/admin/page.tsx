@@ -1,8 +1,9 @@
 "use client";
 
 import {
-  useCallback, useEffect, useRef, useState,
+  useCallback, useEffect, useRef, useState, Fragment,
 } from "react";
+import { createPortal } from "react-dom";
 import type { Match, Media } from "@/lib/types";
 
 /* ═══════════════════════════════════════════════════════════════════ styles ═══ */
@@ -216,6 +217,229 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ══════════════════════════════════════════════════════════════ media manager ═ */
+
+/* ── 图片裁剪工具 ─────────────────────────────────────────────────────────────── */
+const CROP_RATIOS: { label: string; value: number | null }[] = [
+  { label: "1:1 方形", value: 1 },
+  { label: "4:3 风景", value: 4 / 3 },
+  { label: "16:9 宽屏", value: 16 / 9 },
+  { label: "自由",     value: null },
+];
+
+function computeDisplaySize(natW: number, natH: number): { w: number; h: number } {
+  const limit = Math.min(520, window.innerWidth - 96, window.innerHeight - 320);
+  let w = natW, h = natH;
+  if (w > limit) { h = Math.round(h * limit / w); w = limit; }
+  if (h > limit) { w = Math.round(w * limit / h); h = limit; }
+  return { w, h };
+}
+
+function initCropRect(
+  dw: number, dh: number, ratio: number | null
+): { x: number; y: number; w: number; h: number } {
+  if (ratio === null) return { x: 0, y: 0, w: dw, h: dh };
+  let cw = dw, ch = cw / ratio;
+  if (ch > dh) { ch = dh; cw = ch * ratio; }
+  cw = Math.min(cw, dw); ch = Math.min(ch, dh);
+  return { x: Math.round((dw - cw) / 2), y: Math.round((dh - ch) / 2), w: Math.round(cw), h: Math.round(ch) };
+}
+
+interface CropModalProps {
+  file: File;
+  onConfirm: (blob: Blob) => void;
+  onSkip:    () => void;
+  onCancel:  () => void;
+}
+
+function CropModal({ file, onConfirm, onSkip, onCancel }: CropModalProps) {
+  const [imgUrl,   setImgUrl]   = useState("");
+  const [natural,  setNatural]  = useState<{ w: number; h: number } | null>(null);
+  const [display,  setDisplay]  = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [ratioIdx, setRatioIdx] = useState(0);
+  const [crop, setCrop] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Keep latest mutable values accessible in global event handlers (avoids stale closures)
+  const live = useRef({ display: { w: 0, h: 0 }, ratioIdx: 0, crop: null as typeof crop });
+  live.current = { display, ratioIdx, crop };
+
+  const dragRef = useRef<{
+    type: "move" | "se";
+    startMx: number; startMy: number;
+    startCrop: { x: number; y: number; w: number; h: number };
+  } | null>(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setImgUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const onImgLoad = useCallback(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    const nat  = { w: img.naturalWidth, h: img.naturalHeight };
+    setNatural(nat);
+    const disp = computeDisplaySize(nat.w, nat.h);
+    setDisplay(disp);
+    setCrop(initCropRect(disp.w, disp.h, CROP_RATIOS[0].value));
+  }, []);
+
+  const changeRatio = useCallback((i: number) => {
+    setRatioIdx(i);
+    const { display: d } = live.current;
+    if (d.w) setCrop(initCropRect(d.w, d.h, CROP_RATIOS[i].value));
+  }, []);
+
+  const startDrag = useCallback((e: React.MouseEvent, type: "move" | "se") => {
+    e.preventDefault();
+    const c = live.current.crop;
+    if (!c) return;
+    dragRef.current = { type, startMx: e.clientX, startMy: e.clientY, startCrop: { ...c } };
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const { display: disp, ratioIdx: ri } = live.current;
+      const { type, startMx, startMy, startCrop } = d;
+      const ratio = CROP_RATIOS[ri].value;
+      const dx = e.clientX - startMx;
+      const dy = e.clientY - startMy;
+
+      if (type === "move") {
+        setCrop({
+          ...startCrop,
+          x: Math.max(0, Math.min(disp.w - startCrop.w, startCrop.x + dx)),
+          y: Math.max(0, Math.min(disp.h - startCrop.h, startCrop.y + dy)),
+        });
+      } else {
+        // SE 缩放角
+        let nw = Math.max(40, startCrop.w + dx);
+        let nh = ratio !== null ? nw / ratio : Math.max(40, startCrop.h + dy);
+        nw = Math.min(nw, disp.w - startCrop.x);
+        if (ratio !== null) {
+          nh = nw / ratio;
+          if (nh > disp.h - startCrop.y) { nh = disp.h - startCrop.y; nw = nh * ratio; }
+        } else {
+          nh = Math.min(nh, disp.h - startCrop.y);
+        }
+        setCrop({ ...startCrop, w: Math.max(40, nw), h: Math.max(40, nh) });
+      }
+    };
+    const onUp = () => { dragRef.current = null; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup",   onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []); // empty deps — live ref carries latest state
+
+  const handleConfirm = useCallback(() => {
+    const { crop: c, display: disp } = live.current;
+    if (!c || !natural || !imgRef.current) return;
+    const sx = natural.w / disp.w;
+    const sy = natural.h / disp.h;
+    const cw = Math.round(c.w * sx);
+    const ch = Math.round(c.h * sy);
+    const canvas = document.createElement("canvas");
+    canvas.width = cw; canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(imgRef.current, Math.round(c.x * sx), Math.round(c.y * sy), cw, ch, 0, 0, cw, ch);
+    const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+    canvas.toBlob(blob => { if (blob) onConfirm(blob); }, mime, 0.92);
+  }, [natural, file, onConfirm]);
+
+  const currentRatio = CROP_RATIOS[ratioIdx].value;
+
+  // 用 Portal 渲染到 document.body，避免父层 backdropFilter / transform 创建新
+  // stacking context 导致 position:fixed 定位基准错乱
+  return createPortal(
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.82)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      onClick={onCancel}
+    >
+      <div
+        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: 20, maxWidth: 660, width: "100%" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h3 style={{ fontSize: "0.9rem", fontWeight: 400, color: "var(--text)" }}>
+            裁剪图片 · 拖动调整范围
+          </h3>
+          <button type="button" onClick={onCancel} style={{ ...S.btn(), padding: "3px 10px", fontSize: "0.7rem" }}>×</button>
+        </div>
+
+        {/* 比例选择 */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center" }}>
+          <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>比例</span>
+          {CROP_RATIOS.map((r, i) => (
+            <button key={r.label} type="button" onClick={() => changeRatio(i)}
+              style={{ ...S.btn(i === ratioIdx), padding: "4px 12px", fontSize: "0.7rem" }}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 图片 + 裁剪框 */}
+        <div style={{ display: "flex", justifyContent: "center", background: "#000", borderRadius: 10, overflow: "hidden", minHeight: 120, marginBottom: 10 }}>
+          <div style={{ position: "relative", width: display.w || "auto", height: display.h || "auto", flexShrink: 0, userSelect: "none" }}>
+            {/* 仅在 imgUrl 赋值后才渲染，避免 src="" 触发浏览器重新请求页面 */}
+            {imgUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img ref={imgRef} src={imgUrl} alt="" onLoad={onImgLoad} draggable={false}
+                style={{ display: "block", width: display.w || "auto", height: display.h || "auto" }} />
+            )}
+            {crop && (
+              <>
+                {/* 四块遮罩遮住裁剪框以外区域 */}
+                <div style={{ position: "absolute", left: 0, top: 0, right: 0, height: crop.y, background: "rgba(0,0,0,0.6)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", left: 0, top: crop.y + crop.h, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", left: 0, top: crop.y, width: crop.x, height: crop.h, background: "rgba(0,0,0,0.6)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", left: crop.x + crop.w, top: crop.y, right: 0, height: crop.h, background: "rgba(0,0,0,0.6)", pointerEvents: "none" }} />
+
+                {/* 裁剪框本体（拖动移位） */}
+                <div
+                  onMouseDown={e => startDrag(e, "move")}
+                  style={{ position: "absolute", left: crop.x, top: crop.y, width: crop.w, height: crop.h, border: "2px solid var(--accent)", boxSizing: "border-box", cursor: "move" }}
+                >
+                  {/* 三等分辅助线 */}
+                  {[1, 2].map(n => (
+                    <Fragment key={n}>
+                      <div style={{ position: "absolute", left: `${n * 33.33}%`, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.2)", pointerEvents: "none" }} />
+                      <div style={{ position: "absolute", top: `${n * 33.33}%`, left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.2)", pointerEvents: "none" }} />
+                    </Fragment>
+                  ))}
+                  {/* SE 缩放角 */}
+                  <div
+                    onMouseDown={e => { e.stopPropagation(); startDrag(e, "se"); }}
+                    style={{ position: "absolute", bottom: -5, right: -5, width: 12, height: 12, background: "var(--accent)", borderRadius: 2, cursor: "se-resize" }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 裁剪尺寸提示 */}
+        {crop && natural && (
+          <p style={{ fontSize: "0.67rem", color: "var(--muted)", textAlign: "center", marginBottom: 14 }}>
+            裁剪后：{Math.round(crop.w * natural.w / display.w)} × {Math.round(crop.h * natural.h / display.h)} px
+            {currentRatio !== null && ` · ${CROP_RATIOS[ratioIdx].label}`}
+          </p>
+        )}
+
+        {/* 操作按钮 */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onSkip}         style={{ ...S.btn(),      padding: "8px 16px" }}>跳过，原图上传</button>
+          <button type="button" onClick={handleConfirm}  style={{ ...S.btn(true),  padding: "8px 22px" }}>裁剪并上传</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 interface MediaManagerProps {
   items: Media[];
   onChange: (items: Media[]) => void;
@@ -223,24 +447,42 @@ interface MediaManagerProps {
 
 function MediaManager({ items, onChange }: MediaManagerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [drag, setDrag] = useState(false);
+  const [uploading,  setUploading]  = useState(false);
+  const [drag,       setDrag]       = useState(false);
+  const [cropQueue,  setCropQueue]  = useState<File[]>([]);
+
+  // 上传任意 File 或 Blob，返回可访问的 URL
+  const uploadOne = useCallback(async (blob: Blob | File, fallbackName?: string): Promise<string | null> => {
+    const f = blob instanceof File
+      ? blob
+      : new File([blob], fallbackName ?? `crop-${Date.now()}.${blob.type === "image/png" ? "png" : "jpg"}`, { type: blob.type });
+    const form = new FormData(); form.append("file", f);
+    const res  = await fetch("/api/upload", { method: "POST", body: form });
+    if (!res.ok) return null;
+    return ((await res.json()) as { url: string }).url;
+  }, []);
 
   const uploadFiles = useCallback(async (files: FileList | File[]) => {
-    setUploading(true);
-    const results: Media[] = [];
-    for (const file of Array.from(files)) {
-      const form = new FormData(); form.append("file", file);
-      const res  = await fetch("/api/upload", { method: "POST", body: form });
-      if (res.ok) {
-        const { url } = await res.json() as { url: string };
-        const isVideo = /\.(mp4|mov|webm)$/i.test(file.name) || file.type.startsWith("video/");
-        results.push(isVideo ? { type: "video", url } : { type: "image", url, thumb: url });
+    const arr    = Array.from(files);
+    const isVid  = (f: File) => /\.(mp4|mov|webm)$/i.test(f.name) || f.type.startsWith("video/");
+    const videos = arr.filter(f =>  isVid(f));
+    const images = arr.filter(f => !isVid(f));
+
+    // 视频直接上传（无需裁剪）
+    if (videos.length > 0) {
+      setUploading(true);
+      const results: Media[] = [];
+      for (const file of videos) {
+        const url = await uploadOne(file);
+        if (url) results.push({ type: "video", url });
       }
+      onChange([...items, ...results]);
+      setUploading(false);
     }
-    onChange([...items, ...results]);
-    setUploading(false);
-  }, [items, onChange]);
+
+    // 图片进入裁剪队列，每张逐一弹出裁剪框
+    if (images.length > 0) setCropQueue(q => [...q, ...images]);
+  }, [items, onChange, uploadOne]);
 
   // 从剪贴板直接粘贴图片（截图、复制的图片）
   const pasteImage = useCallback(async () => {
@@ -261,6 +503,28 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
       alert("无法读取剪贴板，请确认浏览器已授予剪贴板权限。");
     }
   }, [uploadFiles]);
+
+  // 裁剪确认：上传已裁剪的 Blob，然后处理队列下一张
+  const onCropConfirm = useCallback(async (blob: Blob) => {
+    setUploading(true);
+    const url = await uploadOne(blob);
+    if (url) onChange([...items, { type: "image", url, thumb: url }]);
+    setCropQueue(q => q.slice(1));
+    setUploading(false);
+  }, [items, onChange, uploadOne]);
+
+  // 跳过裁剪：直接上传原图
+  const onCropSkip = useCallback(async () => {
+    const file = cropQueue[0];
+    if (!file) return;
+    setUploading(true);
+    const url = await uploadOne(file);
+    if (url) onChange([...items, { type: "image", url, thumb: url }]);
+    setCropQueue(q => q.slice(1));
+    setUploading(false);
+  }, [cropQueue, items, onChange, uploadOne]);
+
+  const onCropCancel = useCallback(() => setCropQueue([]), []);
 
   const update = (i: number, patch: Partial<Media>) =>
     onChange(items.map((m, idx) => idx === i ? { ...m, ...patch } as Media : m));
@@ -337,6 +601,16 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
       ))}
 
       <button onClick={addUrl} style={{ ...S.btn(), fontSize: "0.72rem" }}>+ 手动填入 URL</button>
+
+      {/* 裁剪弹窗：队列里有图片时逐一弹出 */}
+      {cropQueue.length > 0 && (
+        <CropModal
+          file={cropQueue[0]}
+          onConfirm={onCropConfirm}
+          onSkip={onCropSkip}
+          onCancel={onCropCancel}
+        />
+      )}
     </div>
   );
 }
