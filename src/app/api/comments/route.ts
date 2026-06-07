@@ -4,7 +4,7 @@ import pool from "@/lib/db";
 // GET /api/comments — 返回已审核的留言（最新在前）
 export async function GET() {
   const { rows } = await pool.query(
-    `SELECT id, nickname, content, created_at
+    `SELECT id, nickname, content, likes, created_at
      FROM   comments
      WHERE  is_approved = TRUE
      ORDER  BY created_at DESC

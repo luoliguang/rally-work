@@ -25,7 +25,17 @@ CREATE TABLE IF NOT EXISTS comments (
   nickname    VARCHAR(50)  NOT NULL DEFAULT '匿名',
   content     TEXT         NOT NULL CHECK (char_length(content) BETWEEN 1 AND 300),
   is_approved BOOLEAN      NOT NULL DEFAULT FALSE,
+  likes       INTEGER      NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- 留言点赞记录（按 IP 去重，同一 IP 对同一留言只能点一次）
+CREATE TABLE IF NOT EXISTS comment_likes (
+  id         SERIAL PRIMARY KEY,
+  comment_id INTEGER      NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  ip_hash    VARCHAR(64)  NOT NULL,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  UNIQUE (comment_id, ip_hash)
 );
 
 -- 队友名单（后台可增删改，新建比赛记录时从这里勾选）
@@ -52,6 +62,7 @@ CREATE TABLE IF NOT EXISTS matches (
 );
 
 -- 索引
-CREATE INDEX IF NOT EXISTS idx_reactions_match ON reactions (match_id);
-CREATE INDEX IF NOT EXISTS idx_comments_approved ON comments (is_approved, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_matches_date ON matches (date);
+CREATE INDEX IF NOT EXISTS idx_reactions_match   ON reactions     (match_id);
+CREATE INDEX IF NOT EXISTS idx_comments_approved ON comments      (is_approved, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comment_likes     ON comment_likes (comment_id);
+CREATE INDEX IF NOT EXISTS idx_matches_date      ON matches       (date);

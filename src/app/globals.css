@@ -38,10 +38,7 @@ body  {
   to   { transform: translateX(-100%); }
 }
 
-/* 鼠标悬停整个弹幕带时，暂停所有弹幕，方便阅读 */
-.danmaku-wall:hover .danmaku-item {
-  animation-play-state: paused;
-}
+/* 单条弹幕的 hover 暂停由 React inline style 控制（animationPlayState），不在此处设置 */
 
 @media (prefers-reduced-motion: reduce) {
   .danmaku-item { animation: none !important; }

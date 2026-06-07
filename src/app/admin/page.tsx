@@ -1083,16 +1083,33 @@ function MatchesTab() {
 }
 
 /* ═══════════════════════════════════════════════════════════ stats / comments ═ */
+const DANMAKU_SPEEDS = [
+  { key: "slow",   label: "慢速", desc: "32 秒 / 条" },
+  { key: "medium", label: "中速", desc: "22 秒 / 条（默认）" },
+  { key: "fast",   label: "快速", desc: "14 秒 / 条" },
+] as const;
+type SpeedKey = "slow" | "medium" | "fast";
+
 function StatsTab() {
-  const [visits, setVisits]   = useState<number|null>(null);
-  const [cm,     setCm]       = useState({ pending: 0, approved: 0 });
+  const [visits, setVisits] = useState<number|null>(null);
+  const [cm,     setCm]     = useState({ pending: 0, approved: 0 });
+  const [speed,  setSpeed]  = useState<SpeedKey>("medium");
 
   useEffect(() => {
     fetch("/api/visits").then(r => r.json()).then(d => setVisits(d.total)).catch(()=>{});
     fetch("/api/admin/comments").then(r => r.json()).then((rows: {is_approved:boolean}[]) =>
       setCm({ pending: rows.filter(c=>!c.is_approved).length, approved: rows.filter(c=>c.is_approved).length })
     ).catch(()=>{});
+    try {
+      const saved = JSON.parse(localStorage.getItem("cw-speed") ?? "null");
+      if (saved === "slow" || saved === "medium" || saved === "fast") setSpeed(saved);
+    } catch {}
   }, []);
+
+  function changeSpeed(key: SpeedKey) {
+    setSpeed(key);
+    try { localStorage.setItem("cw-speed", JSON.stringify(key)); } catch {}
+  }
 
   const stats = [
     { label: "累计独立访客", value: visits ?? "—", accent: true },
@@ -1101,13 +1118,33 @@ function StatsTab() {
   ];
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-      {stats.map(s => (
-        <div key={s.label} style={{ flex: "1 1 140px", padding: 20, border: "1px solid var(--border)", borderRadius: 12, background: "rgba(255,255,255,0.02)" }}>
-          <div style={{ fontSize: "2rem", fontWeight: 300, color: s.accent ? "var(--accent)" : "var(--text)" }}>{s.value}</div>
-          <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: 4 }}>{s.label}</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* 数据统计卡片 */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        {stats.map(s => (
+          <div key={s.label} style={{ flex: "1 1 140px", padding: 20, border: "1px solid var(--border)", borderRadius: 12, background: "rgba(255,255,255,0.02)" }}>
+            <div style={{ fontSize: "2rem", fontWeight: 300, color: s.accent ? "var(--accent)" : "var(--text)" }}>{s.value}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: 4 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 留言弹幕速度 */}
+      <div style={{ padding: 20, border: "1px solid var(--border)", borderRadius: 12, background: "rgba(255,255,255,0.02)" }}>
+        <p style={S.sectionTitle}>留言弹幕速度</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          {DANMAKU_SPEEDS.map(({ key, label, desc }) => (
+            <button key={key} onClick={() => changeSpeed(key)}
+              style={{ ...S.btn(speed === key), padding: "8px 18px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+              <span style={{ fontSize: "0.82rem" }}>{label}</span>
+              <span style={{ fontSize: "0.65rem", opacity: 0.6 }}>{desc}</span>
+            </button>
+          ))}
         </div>
-      ))}
+        <p style={{ fontSize: "0.68rem", color: "var(--muted)", opacity: 0.5 }}>
+          偏好存储在当前浏览器，切换后刷新留言墙页面生效。
+        </p>
+      </div>
     </div>
   );
 }
