@@ -40,6 +40,11 @@ body  {
 
 /* 单条弹幕的 hover 暂停由 React inline style 控制（animationPlayState），不在此处设置 */
 
+/* 触摸设备上显示操作提示 */
+@media (hover: none) and (pointer: coarse) {
+  .danmaku-touch-hint { display: block !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .danmaku-item { animation: none !important; }
 }

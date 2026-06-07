@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Comment {
   id: number;
@@ -56,7 +56,12 @@ export function CommentWall() {
   const [nickname,   setNickname]   = useState("");
   const [content,    setContent]    = useState("");
   const [status,     setStatus]     = useState<"idle"|"sending"|"done"|"error">("idle");
-  const [hoveredId,  setHoveredId]  = useState<number | null>(null);
+  // 当前"激活"的留言 ID：桌面 = hover，移动端 = 点击
+  const [activeId,   setActiveId]   = useState<number | null>(null);
+  const dismissTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 记录最近一次 pointerdown 的输入类型（mouse / touch / pen）
+  // 用于在 onClick 中区分桌面点击和触摸点击
+  const lastPointerType = useRef("mouse");
 
   // 速度：从 localStorage 读取，默认 medium
   const [speedKey, setSpeedKey] = useState<SpeedKey>("medium");
@@ -85,6 +90,26 @@ export function CommentWall() {
       })
       .catch(() => {});
   }, []);
+
+  // 移动端：点击激活某条留言，4 秒后自动恢复滚动
+  const activateTouch = useCallback((id: number) => {
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    setActiveId(prev => {
+      if (prev === id) return null;            // 再次点击同一条 → 立即关闭
+      dismissTimer.current = setTimeout(() => setActiveId(null), 4000);
+      return id;
+    });
+  }, []);
+
+  // 点击弹幕区域空白处关闭（仅触摸输入时执行，桌面鼠标点击不触发）
+  const dismissTouch = useCallback(() => {
+    if (lastPointerType.current === "mouse") return;
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    setActiveId(null);
+  }, []);
+
+  // 组件卸载时清理定时器
+  useEffect(() => () => { if (dismissTimer.current) clearTimeout(dismissTimer.current); }, []);
 
   // 点赞 toggle
   const toggleLike = async (id: number) => {
@@ -149,9 +174,11 @@ export function CommentWall() {
       {/* ── 弹幕区域 ─────────────────────────────────────────────────────────── */}
       {comments.length > 0 ? (
         <>
-          {/* 弹幕带 */}
+          {/* 弹幕带：触摸点击空白处关闭激活项 */}
           <div
             className="danmaku-wall"
+            onPointerDown={e => { lastPointerType.current = e.pointerType; }}
+            onClick={dismissTouch}
             style={{
               position: "relative",
               height: `${LANES * 3.4}rem`,
@@ -163,9 +190,9 @@ export function CommentWall() {
           >
             {lanes.map((lane, laneIdx) =>
               lane.map((c, i) => {
-                const delay    = -(i * (durationBase / Math.max(lane.length, 1))) - laneIdx * 2.5;
-                const duration = durationBase + (laneIdx % 2) * 5 + (c.content.length > 20 ? 5 : 0);
-                const isHovered = hoveredId === c.id;
+                const delay     = -(i * (durationBase / Math.max(lane.length, 1))) - laneIdx * 2.5;
+                const duration  = durationBase + (laneIdx % 2) * 5 + (c.content.length > 20 ? 5 : 0);
+                const isActive  = activeId === c.id;
                 const isLiked   = likedIds.has(c.id);
                 const likeCount = likeCounts[c.id] ?? 0;
                 const color     = nicknameColor(c.nickname);
@@ -174,8 +201,12 @@ export function CommentWall() {
                   <div
                     key={`${laneIdx}-${c.id}`}
                     className="danmaku-item"
-                    onMouseEnter={() => setHoveredId(c.id)}
-                    onMouseLeave={() => setHoveredId(null)}
+                    // 桌面：pointer 事件按 pointerType 区分，过滤触摸 ghost 事件
+                    onPointerEnter={e => { if (e.pointerType === "mouse") setActiveId(c.id); }}
+                    onPointerLeave={e => { if (e.pointerType === "mouse") setActiveId(null); }}
+                    // 移动端：onClick 通过 lastPointerType ref 判断输入类型
+                    // 点赞按钮的 stopPropagation 会阻止此 onClick，确保点赞不会误关激活项
+                    onClick={e => { if (lastPointerType.current !== "mouse") { e.stopPropagation(); activateTouch(c.id); } }}
                     style={{
                       position: "absolute",
                       top: `${laneIdx * 3.4}rem`,
@@ -186,8 +217,8 @@ export function CommentWall() {
                       animationTimingFunction: "linear",
                       animationIterationCount: "infinite",
                       animationDelay: `${delay}s`,
-                      animationPlayState: isHovered ? "paused" : "running",
-                      zIndex: isHovered ? 10 : 1,
+                      animationPlayState: isActive ? "paused" : "running",
+                      zIndex: isActive ? 10 : 1,
                     }}
                   >
                     <span
@@ -198,10 +229,10 @@ export function CommentWall() {
                         padding: "0.45rem 1rem 0.45rem 1.1rem",
                         borderRadius: "999px",
                         fontSize: "0.85rem",
-                        background: isHovered ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${isHovered ? color + "60" : "var(--border)"}`,
-                        boxShadow: isHovered ? `0 0 20px ${color}20, 0 0 0 1px ${color}30` : "none",
-                        transform: isHovered ? "scale(1.04)" : "scale(1)",
+                        background: isActive ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${isActive ? color + "60" : "var(--border)"}`,
+                        boxShadow: isActive ? `0 0 20px ${color}20, 0 0 0 1px ${color}30` : "none",
+                        transform: isActive ? "scale(1.04)" : "scale(1)",
                         transition: "background 0.2s, box-shadow 0.2s, transform 0.2s, border-color 0.2s",
                         cursor: "default",
                       }}
@@ -212,8 +243,8 @@ export function CommentWall() {
                       {/* 内容 */}
                       <span style={{ color: "var(--text)", opacity: 0.85 }}>{c.content}</span>
 
-                      {/* hover 时额外显示：分隔线 + 时间 + 点赞 */}
-                      {isHovered && (
+                      {/* 激活时额外显示：分隔线 + 时间 + 点赞 */}
+                      {isActive && (
                         <>
                           <span style={{ width: 1, height: "0.85rem", background: "var(--border)", display: "inline-block", opacity: 0.5, flexShrink: 0 }} />
                           <span style={{ fontSize: "0.68rem", color: "var(--muted)", flexShrink: 0 }}>
@@ -232,9 +263,10 @@ export function CommentWall() {
                               lineHeight: 1,
                               transition: "transform 0.15s, color 0.15s",
                               flexShrink: 0,
+                              // 移动端不做 scale 动画（无鼠标悬停）
                             }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.25)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+                            onPointerEnter={e => { if (e.pointerType === "mouse") (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.25)"; }}
+                            onPointerLeave={e => { if (e.pointerType === "mouse") (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
                           >
                             {isLiked ? "❤️" : "🤍"}
                             {likeCount > 0 && (
@@ -244,8 +276,8 @@ export function CommentWall() {
                         </>
                       )}
 
-                      {/* 不 hover 时，若已有点赞数则始终展示小计数（低调） */}
-                      {!isHovered && likeCount > 0 && (
+                      {/* 非激活时，若已有点赞数则展示小计数（低调） */}
+                      {!isActive && likeCount > 0 && (
                         <span style={{ fontSize: "0.65rem", color: "#f87171", opacity: 0.55, flexShrink: 0 }}>
                           ❤ {likeCount}
                         </span>
@@ -256,6 +288,22 @@ export function CommentWall() {
               })
             )}
           </div>
+
+          {/* 移动端提示：CSS media query 控制，无需 JS 检测 */}
+          <p
+            className="danmaku-touch-hint text-center"
+            style={{
+              fontSize: "0.68rem",
+              color: "var(--muted)",
+              opacity: 0.4,
+              marginTop: "-clamp(1.5rem,3vw,2rem)",
+              marginBottom: "clamp(1rem,2vw,1.5rem)",
+              // 仅触摸设备可见
+              display: "none",
+            }}
+          >
+            点击留言可暂停 · 再点可点赞
+          </p>
         </>
       ) : (
         <p className="text-center"
