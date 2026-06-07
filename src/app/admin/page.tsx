@@ -4,7 +4,7 @@ import {
   useCallback, useEffect, useRef, useState, Fragment,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Match, Media } from "@/lib/types";
+import type { Match, Media, VideoMedia } from "@/lib/types";
 
 /* ═══════════════════════════════════════════════════════════════════ styles ═══ */
 const S = {
@@ -217,6 +217,30 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 }
 
 /* ══════════════════════════════════════════════════════════════ media manager ═ */
+
+/* ── 视频帧提取：在浏览器内抓取指定秒数的帧，返回 JPEG Blob ─────────────────── */
+function extractVideoFrame(videoUrl: string, atSecond = 2): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "metadata";
+    video.src = videoUrl;
+
+    video.addEventListener("loadedmetadata", () => {
+      video.currentTime = Math.min(atSecond, video.duration * 0.1 || atSecond);
+    }, { once: true });
+
+    video.addEventListener("seeked", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width  = video.videoWidth  || 1280;
+      canvas.height = video.videoHeight || 720;
+      canvas.getContext("2d")?.drawImage(video, 0, 0);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
+    }, { once: true });
+
+    video.addEventListener("error", () => resolve(null), { once: true });
+  });
+}
 
 /* ── 图片裁剪工具 ─────────────────────────────────────────────────────────────── */
 const CROP_RATIOS: { label: string; value: number | null }[] = [
@@ -447,9 +471,10 @@ interface MediaManagerProps {
 
 function MediaManager({ items, onChange }: MediaManagerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading,  setUploading]  = useState(false);
-  const [drag,       setDrag]       = useState(false);
-  const [cropQueue,  setCropQueue]  = useState<File[]>([]);
+  const [uploading,        setUploading]        = useState(false);
+  const [drag,             setDrag]             = useState(false);
+  const [cropQueue,        setCropQueue]        = useState<File[]>([]);
+  const [generatingPoster, setGeneratingPoster] = useState<number | null>(null);
 
   // 上传任意 File 或 Blob，返回可访问的 URL
   const uploadOne = useCallback(async (blob: Blob | File, fallbackName?: string): Promise<string | null> => {
@@ -468,13 +493,19 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
     const videos = arr.filter(f =>  isVid(f));
     const images = arr.filter(f => !isVid(f));
 
-    // 视频直接上传（无需裁剪）
+    // 视频直接上传（无需裁剪），上传后自动提取封面
     if (videos.length > 0) {
       setUploading(true);
       const results: Media[] = [];
       for (const file of videos) {
         const url = await uploadOne(file);
-        if (url) results.push({ type: "video", url });
+        if (url) {
+          const frameBlob = await extractVideoFrame(url);
+          const poster = frameBlob
+            ? await uploadOne(frameBlob, `poster-${Date.now()}.jpg`) ?? undefined
+            : undefined;
+          results.push({ type: "video", url, ...(poster ? { poster } : {}) });
+        }
       }
       onChange([...items, ...results]);
       setUploading(false);
@@ -526,6 +557,19 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
 
   const onCropCancel = useCallback(() => setCropQueue([]), []);
 
+  // 为已有视频手动生成封面
+  const generatePosterFor = useCallback(async (i: number) => {
+    const m = items[i];
+    if (m.type !== "video" || !m.url) return;
+    setGeneratingPoster(i);
+    const frameBlob = await extractVideoFrame(m.url);
+    if (frameBlob) {
+      const poster = await uploadOne(frameBlob, `poster-${Date.now()}.jpg`);
+      if (poster) onChange(items.map((item, idx) => idx === i ? { ...item, poster } as Media : item));
+    }
+    setGeneratingPoster(null);
+  }, [items, onChange, uploadOne]);
+
   const update = (i: number, patch: Partial<Media>) =>
     onChange(items.map((m, idx) => idx === i ? { ...m, ...patch } as Media : m));
 
@@ -575,6 +619,9 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
             {m.type === "image" && m.url
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={m.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : m.type === "video" && (m as VideoMedia).poster
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={(m as VideoMedia).poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <span style={{ fontSize: "1.2rem" }}>{m.type === "video" ? "🎬" : "🖼"}</span>
             }
           </div>
@@ -592,7 +639,16 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
             {/* Thumb / Poster */}
             {m.type === "image"
               ? <input value={(m as { thumb?: string }).thumb ?? ""} onChange={e => update(i, { thumb: e.target.value } as Partial<Media>)} placeholder="缩略图 URL（可留空，默认同上）" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
-              : <input value={(m as { poster?: string }).poster ?? ""} onChange={e => update(i, { poster: e.target.value } as Partial<Media>)} placeholder="视频封面 URL（可留空）" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
+              : <div style={{ display: "flex", gap: 6 }}>
+                  <input value={(m as VideoMedia).poster ?? ""} onChange={e => update(i, { poster: e.target.value } as Partial<Media>)} placeholder="视频封面 URL（可留空）" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
+                  <button
+                    onClick={() => generatePosterFor(i)}
+                    disabled={generatingPoster === i}
+                    style={{ ...S.btn(), fontSize: "0.68rem", padding: "4px 10px", flexShrink: 0, whiteSpace: "nowrap" }}
+                  >
+                    {generatingPoster === i ? "生成中…" : "生成封面"}
+                  </button>
+                </div>
             }
           </div>
 
