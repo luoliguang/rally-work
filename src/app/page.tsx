@@ -1,4 +1,5 @@
 import { listMatches } from "@/lib/matches";
+import { getVisitCount } from "@/lib/visits";
 import { HeroIntro } from "@/components/HeroIntro";
 import { TimelineZigzag } from "@/components/TimelineZigzag";
 import { CommentWall } from "@/components/CommentWall";
@@ -10,7 +11,7 @@ import { VisitTracker } from "@/components/VisitTracker";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const matches = await listMatches();
+  const [matches, visitors] = await Promise.all([listMatches(), getVisitCount()]);
 
   return (
     <>
@@ -20,7 +21,7 @@ export default async function HomePage() {
       <HeroIntro totalMatches={matches.length} />
       <TimelineZigzag matches={matches} />
       <CommentWall />
-      <SiteFooter matches={matches} />
+      <SiteFooter matches={matches} visitors={visitors} />
     </>
   );
 }

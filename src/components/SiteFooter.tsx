@@ -5,7 +5,12 @@ function fmtMonthYear(dateStr: string) {
   return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月`;
 }
 
-export function SiteFooter({ matches }: { matches: Match[] }) {
+// 数字千分位格式化：847 → "847"，1234 → "1,234"
+function fmtNum(n: number) {
+  return n.toLocaleString("en-US");
+}
+
+export function SiteFooter({ matches, visitors }: { matches: Match[]; visitors: number }) {
   const total   = matches.length;
   const first   = matches[0]?.date;
   const last    = matches[matches.length - 1]?.date;
@@ -91,16 +96,40 @@ export function SiteFooter({ matches }: { matches: Match[] }) {
         </div>
       </div>
 
-      {/* ── 底部署名条（提高可读性） ─────────────────────────────────────────── */}
+      {/* ── 底部署名条 ────────────────────────────────────────────────────────── */}
       <div
-        className="flex items-center justify-center text-xs tracking-widest"
+        className="flex flex-wrap items-center justify-center gap-x-3 text-xs tracking-widest"
         style={{
           borderTop: "1px solid var(--border)",
           color: "rgba(221,225,233,0.5)",
           padding: "1.4rem 1rem",
         }}
       >
-        Rally · 记录关于我们的羽毛球时光
+        <span>Rally · 记录关于我们的羽毛球时光</span>
+
+        {visitors > 0 && (
+          <>
+            <span aria-hidden style={{ opacity: 0.3 }}>·</span>
+            <span className="flex items-center gap-2">
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 5, height: 5,
+                  borderRadius: "50%",
+                  background: "var(--accent)",
+                  opacity: 0.55,
+                  flexShrink: 0,
+                }}
+              />
+              <span>
+                <span style={{ color: "var(--accent)", opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
+                  {fmtNum(visitors)}
+                </span>
+                {" "}位到访
+              </span>
+            </span>
+          </>
+        )}
       </div>
     </footer>
   );
