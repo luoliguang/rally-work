@@ -45,4 +45,4 @@ jobs:
           script: |
             cd /www/wwwroot/rally-work
             git pull
-            pm2 restart rally-work
+            pm2 restart rally
