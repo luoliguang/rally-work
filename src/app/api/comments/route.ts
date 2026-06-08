@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { notifyNewComment } from "@/lib/notify";
 
 // GET /api/comments — 返回已审核的留言（最新在前）
 export async function GET() {
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
     `INSERT INTO comments (nickname, content) VALUES ($1, $2)`,
     [nickname, content]
   );
+
+  // 飞书通知（异步，不阻塞响应）
+  void notifyNewComment(nickname, content);
 
   return NextResponse.json(
     { message: "留言已提交，审核后将显示 🙏" },
