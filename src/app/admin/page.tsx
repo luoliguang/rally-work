@@ -695,13 +695,13 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
                 <button key={t} onClick={() => update(i, { type: t })}
                   style={{ ...S.btn(m.type === t), padding: "2px 10px", fontSize: "0.68rem" }}>{t}</button>
               ))}
-              {m.type === "image" && i > 0 && (
+              {i > 0 && (
                 <button
                   onClick={() => setCover(i)}
                   style={{ ...S.btn(), padding: "2px 10px", fontSize: "0.68rem" }}
                 >★ 设为封面</button>
               )}
-              {m.type === "image" && i === 0 && (
+              {i === 0 && (
                 <span style={{ fontSize: "0.65rem", color: "var(--accent)", opacity: 0.8 }}>★ 当前封面</span>
               )}
             </div>
