@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { Match, Media } from "@/lib/types";
 import { ReactionBar } from "./ReactionBar";
+import { Lightbox } from "./Lightbox";
 import { timelineConfig as TL } from "@/config/timeline";
 import { mediaUrl } from "@/lib/mediaUrl";
 
@@ -44,65 +45,91 @@ function buildConnectorPath(n: number, w: number, h: number): string {
 // Uses absolute inset-0 so it always fills its container exactly,
 // regardless of whether the parent uses height or min-height.
 function MediaPanel({ media }: { media: Media[] }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   if (media.length === 0) {
-    return (
-      <div className="absolute inset-0" style={{ background: "var(--surface)" }} />
-    );
+    return <div className="absolute inset-0" style={{ background: "var(--surface)" }} />;
   }
+
   const [primary, ...rest] = media;
   const extras   = rest.slice(0, 3);
   const overflow = rest.length - extras.length;
 
   return (
-    <div className="absolute inset-0 flex flex-col gap-px">
-      {/* Primary media — takes all space (or ¾ when extras exist) */}
-      <div className={rest.length > 0 ? "flex-[3] overflow-hidden" : "flex-1 overflow-hidden"}>
-        {primary.type === "image" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={mediaUrl(primary.url)} alt="" loading="lazy"
-            className="w-full h-full object-cover"
-            style={{ filter: "brightness(0.85) saturate(0.88)" }} />
-        ) : (
-          <video src={mediaUrl(primary.url)} poster={mediaUrl(primary.poster)}
-            preload="none" controls className="w-full h-full object-cover" />
+    <>
+      <div className="absolute inset-0 flex flex-col gap-px">
+        {/* Primary — 图片可点击放大 */}
+        <div className={rest.length > 0 ? "flex-[3] overflow-hidden" : "flex-1 overflow-hidden"}>
+          {primary.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={mediaUrl(primary.url)} alt="" loading="lazy"
+              className="w-full h-full object-cover"
+              style={{ filter: "brightness(0.85) saturate(0.88)", cursor: "zoom-in" }}
+              onClick={() => setLightboxIndex(0)}
+            />
+          ) : (
+            <video src={mediaUrl(primary.url)} poster={mediaUrl(primary.poster)}
+              preload="none" controls className="w-full h-full object-cover" />
+          )}
+        </div>
+
+        {/* Secondary strip */}
+        {extras.length > 0 && (
+          <div className="flex-1 flex gap-px overflow-hidden">
+            {extras.map((m, i) => (
+              <div
+                key={i}
+                className="relative flex-1 overflow-hidden"
+                style={{ cursor: m.type === "image" ? "zoom-in" : undefined }}
+                onClick={() => m.type === "image" && setLightboxIndex(i + 1)}
+              >
+                {m.type === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mediaUrl(m.thumb ?? m.url)} alt="" loading="lazy"
+                    className="w-full h-full object-cover"
+                    style={{ filter: "brightness(0.65) saturate(0.7)" }} />
+                ) : (
+                  <video src={mediaUrl(m.url)} poster={mediaUrl(m.poster)} preload="none" controls
+                    className="w-full h-full object-cover" />
+                )}
+                {m.type === "video" && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(0,0,0,0.5)" }}>
+                      <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
+                        <path d="M1 1l8 5-8 5V1z" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+                {/* +N 遮罩：点击展开剩余图片 */}
+                {overflow > 0 && i === extras.length - 1 && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ background: "rgba(0,0,0,0.55)", cursor: "zoom-in" }}
+                    onClick={e => { e.stopPropagation(); setLightboxIndex(i + 1); }}
+                  >
+                    <span className="text-white text-sm font-medium">+{overflow}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Secondary strip */}
-      {extras.length > 0 && (
-        <div className="flex-1 flex gap-px overflow-hidden">
-          {extras.map((m, i) => (
-            <div key={i} className="relative flex-1 overflow-hidden">
-              {m.type === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaUrl(m.thumb ?? m.url)} alt="" loading="lazy"
-                  className="w-full h-full object-cover"
-                  style={{ filter: "brightness(0.65) saturate(0.7)" }} />
-              ) : (
-                <video src={mediaUrl(m.url)} poster={mediaUrl(m.poster)} preload="none" controls
-                  className="w-full h-full object-cover" />
-              )}
-              {m.type === "video" && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(0,0,0,0.5)" }}>
-                    <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
-                      <path d="M1 1l8 5-8 5V1z" />
-                    </svg>
-                  </div>
-                </div>
-              )}
-              {overflow > 0 && i === extras.length - 1 && (
-                <div className="absolute inset-0 flex items-center justify-center"
-                  style={{ background: "rgba(0,0,0,0.55)" }}>
-                  <span className="text-white text-sm font-medium">+{overflow}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* 灯箱 */}
+      {lightboxIndex !== null && (
+        <Lightbox
+          media={media}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onChange={setLightboxIndex}
+          resolveUrl={mediaUrl}
+        />
       )}
-    </div>
+    </>
   );
 }
 

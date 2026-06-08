@@ -5,6 +5,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Match, Media, VideoMedia } from "@/lib/types";
+import { Lightbox } from "@/components/Lightbox";
 
 /* ═══════════════════════════════════════════════════════════════════ styles ═══ */
 const S = {
@@ -242,23 +243,31 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 function extractVideoFrame(videoUrl: string, atSecond = 2): Promise<Blob | null> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
-    video.muted = true;
-    video.preload = "metadata";
-    video.src = videoUrl;
+    video.muted      = true;
+    video.preload    = "auto";
+    video.crossOrigin = "anonymous";
+    video.src        = videoUrl;
 
-    video.addEventListener("loadedmetadata", () => {
-      video.currentTime = Math.min(atSecond, video.duration * 0.1 || atSecond);
-    }, { once: true });
-
-    video.addEventListener("seeked", () => {
+    const capture = () => {
       const canvas = document.createElement("canvas");
       canvas.width  = video.videoWidth  || 1280;
       canvas.height = video.videoHeight || 720;
       canvas.getContext("2d")?.drawImage(video, 0, 0);
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.85);
-    }, { once: true });
+      canvas.toBlob((blob) => resolve(blob ?? null), "image/jpeg", 0.85);
+    };
 
+    video.addEventListener("seeked", capture, { once: true });
     video.addEventListener("error", () => resolve(null), { once: true });
+
+    // canplaythrough 确保视频帧数据就绪后再 seek，避免黑帧
+    video.addEventListener("canplaythrough", () => {
+      const target = Math.min(atSecond, video.duration > 0 ? video.duration * 0.9 : atSecond);
+      if (Math.abs(video.currentTime - target) < 0.1) {
+        capture(); // 已经在目标帧，直接截取
+      } else {
+        video.currentTime = target;
+      }
+    }, { once: true });
   });
 }
 
@@ -495,6 +504,8 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
   const [drag,             setDrag]             = useState(false);
   const [cropQueue,        setCropQueue]        = useState<File[]>([]);
   const [generatingPoster, setGeneratingPoster] = useState<number | null>(null);
+  const [previewIndex,     setPreviewIndex]     = useState<number | null>(null);
+  const [posterTime,       setPosterTime]       = useState(2);
 
   // 上传任意 File 或 Blob，返回可访问的 URL
   const uploadOne = useCallback(async (blob: Blob | File, fallbackName?: string): Promise<string | null> => {
@@ -577,18 +588,26 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
 
   const onCropCancel = useCallback(() => setCropQueue([]), []);
 
-  // 为已有视频手动生成封面
+  // 为已有视频手动生成封面（使用 posterTime 指定秒数）
   const generatePosterFor = useCallback(async (i: number) => {
     const m = items[i];
     if (m.type !== "video" || !m.url) return;
     setGeneratingPoster(i);
-    const frameBlob = await extractVideoFrame(m.url);
+    const frameBlob = await extractVideoFrame(m.url, posterTime);
     if (frameBlob) {
       const poster = await uploadOne(frameBlob, `poster-${Date.now()}.jpg`);
       if (poster) onChange(items.map((item, idx) => idx === i ? { ...item, poster } as Media : item));
     }
     setGeneratingPoster(null);
-  }, [items, onChange, uploadOne]);
+  }, [items, onChange, uploadOne, posterTime]);
+
+  // 设为封面：将第 i 项移到 index 0
+  const setCover = useCallback((i: number) => {
+    const arr = [...items];
+    const [item] = arr.splice(i, 1);
+    arr.unshift(item);
+    onChange(arr);
+  }, [items, onChange]);
 
   const update = (i: number, patch: Partial<Media>) =>
     onChange(items.map((m, idx) => idx === i ? { ...m, ...patch } as Media : m));
@@ -633,9 +652,23 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
 
       {/* Media list */}
       {items.map((m, i) => (
-        <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8, padding: 10, border: "1px solid var(--border)", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
-          {/* Preview */}
-          <div style={{ width: 56, height: 56, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div key={i} style={{
+          display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 8,
+          padding: 10,
+          border: `1px solid ${i === 0 && m.type === "image" ? "rgba(110,231,183,0.4)" : "var(--border)"}`,
+          borderRadius: 8, background: "rgba(255,255,255,0.02)",
+        }}>
+          {/* Preview — 点击全屏预览 */}
+          <div
+            onClick={() => setPreviewIndex(i)}
+            title="点击预览"
+            style={{
+              width: 56, height: 56, borderRadius: 6, overflow: "hidden",
+              flexShrink: 0, background: "var(--surface)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "zoom-in", position: "relative",
+            }}
+          >
             {m.type === "image" && m.url
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={m.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -644,30 +677,57 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
               ? <img src={(m as VideoMedia).poster} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <span style={{ fontSize: "1.2rem" }}>{m.type === "video" ? "🎬" : "🖼"}</span>
             }
+            {/* 封面角标 */}
+            {i === 0 && m.type === "image" && (
+              <span style={{
+                position: "absolute", bottom: 2, right: 2,
+                fontSize: "0.55rem", lineHeight: 1,
+                background: "var(--accent)", color: "#07090e",
+                borderRadius: 3, padding: "1px 4px", fontWeight: 700,
+              }}>封面</span>
+            )}
           </div>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Type */}
-            <div style={{ display: "flex", gap: 6 }}>
+            {/* Type + 封面操作 */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               {(["image", "video"] as const).map(t => (
                 <button key={t} onClick={() => update(i, { type: t })}
                   style={{ ...S.btn(m.type === t), padding: "2px 10px", fontSize: "0.68rem" }}>{t}</button>
               ))}
+              {m.type === "image" && i > 0 && (
+                <button
+                  onClick={() => setCover(i)}
+                  style={{ ...S.btn(), padding: "2px 10px", fontSize: "0.68rem" }}
+                >★ 设为封面</button>
+              )}
+              {m.type === "image" && i === 0 && (
+                <span style={{ fontSize: "0.65rem", color: "var(--accent)", opacity: 0.8 }}>★ 当前封面</span>
+              )}
             </div>
             {/* URL */}
             <input value={m.url} onChange={e => update(i, { url: e.target.value })} placeholder="图片/视频 URL" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
             {/* Thumb / Poster */}
             {m.type === "image"
               ? <input value={(m as { thumb?: string }).thumb ?? ""} onChange={e => update(i, { thumb: e.target.value } as Partial<Media>)} placeholder="缩略图 URL（可留空，默认同上）" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
-              : <div style={{ display: "flex", gap: 6 }}>
+              : <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <input value={(m as VideoMedia).poster ?? ""} onChange={e => update(i, { poster: e.target.value } as Partial<Media>)} placeholder="视频封面 URL（可留空）" style={{ ...S.field, fontSize: "0.75rem", padding: "6px 10px" }} />
-                  <button
-                    onClick={() => generatePosterFor(i)}
-                    disabled={generatingPoster === i}
-                    style={{ ...S.btn(), fontSize: "0.68rem", padding: "4px 10px", flexShrink: 0, whiteSpace: "nowrap" }}
-                  >
-                    {generatingPoster === i ? "生成中…" : "生成封面"}
-                  </button>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: "0.68rem", color: "var(--muted)", flexShrink: 0 }}>第</span>
+                    <input
+                      type="number" min={0} max={9999} value={posterTime}
+                      onChange={e => setPosterTime(Math.max(0, Number(e.target.value)))}
+                      style={{ ...S.field, width: 64, fontSize: "0.75rem", padding: "4px 8px", textAlign: "center" }}
+                    />
+                    <span style={{ fontSize: "0.68rem", color: "var(--muted)", flexShrink: 0 }}>秒截帧</span>
+                    <button
+                      onClick={() => generatePosterFor(i)}
+                      disabled={generatingPoster === i}
+                      style={{ ...S.btn(), fontSize: "0.68rem", padding: "4px 10px", flexShrink: 0, whiteSpace: "nowrap" }}
+                    >
+                      {generatingPoster === i ? "生成中…" : "生成封面"}
+                    </button>
+                  </div>
                 </div>
             }
           </div>
@@ -685,6 +745,16 @@ function MediaManager({ items, onChange }: MediaManagerProps) {
           onConfirm={onCropConfirm}
           onSkip={onCropSkip}
           onCancel={onCropCancel}
+        />
+      )}
+
+      {/* 全屏预览灯箱 */}
+      {previewIndex !== null && items.length > 0 && (
+        <Lightbox
+          media={items}
+          index={previewIndex}
+          onClose={() => setPreviewIndex(null)}
+          onChange={setPreviewIndex}
         />
       )}
     </div>
