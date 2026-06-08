@@ -19,7 +19,6 @@ const LANE_DURATIONS = [24, 20, 27, 21] as const;
 
 const SPEED_MAP = { slow: 1.5, medium: 1.0, fast: 0.65 } as const;
 type SpeedKey = keyof typeof SPEED_MAP;
-const SPEED_LABELS: Record<SpeedKey, string> = { slow: "慢速", medium: "中速", fast: "快速" };
 
 // 昵称 → 固定色（哈希映射，每人一个颜色）
 const NICK_PALETTE = [
@@ -349,37 +348,9 @@ export function CommentWall() {
         </p>
       )}
 
-      {/* ── 速度控制 + 输入框 ───────────────────────────────────────────────── */}
+      {/* ── 输入框 ───────────────────────────────────────────────────────────── */}
+      {/* 速度切换在管理员后台控制，前端不显示 */}
       <div style={{ maxWidth: "36rem", margin: "0 auto", padding: "0 clamp(1.5rem,4vw,3rem)" }}>
-
-        {/* 速度切换（仅有留言时显示） */}
-        {comments.length > 0 && (
-          <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-            {(Object.keys(SPEED_MAP) as SpeedKey[]).map(k => (
-              <button
-                key={k}
-                onClick={() => {
-                  setSpeedKey(k);
-                  try { localStorage.setItem("cw-speed", JSON.stringify(k)); } catch {}
-                  // 切换速度时清空 effectiveDelays，让各弹幕以新速度重新计算分布
-                  effectiveDelays.current.clear();
-                  pauseStartedAt.current.clear();
-                }}
-                style={{
-                  padding: "0.25rem 0.8rem", borderRadius: "999px",
-                  border: `1px solid ${speedKey === k ? "var(--accent)" : "var(--border)"}`,
-                  background: speedKey === k ? "rgba(110,231,183,0.08)" : "transparent",
-                  color: speedKey === k ? "var(--accent)" : "var(--muted)",
-                  fontSize: "0.72rem", cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {SPEED_LABELS[k]}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div style={{
           display: "flex", alignItems: "center", gap: "0.5rem",
           padding: "0.4rem 0.4rem 0.4rem 1.1rem",
