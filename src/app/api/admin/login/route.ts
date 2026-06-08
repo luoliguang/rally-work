@@ -10,15 +10,15 @@ function safeCompare(a: string, b: string) {
 
 // POST /api/admin/login  body: { password }
 export async function POST(req: Request) {
-  const { password } = (await req.json()) as { password?: string };
-  const expected     = process.env.ADMIN_PASSWORD ?? "";
+  const { password, remember } = (await req.json()) as { password?: string; remember?: boolean };
+  const expected = process.env.ADMIN_PASSWORD ?? "";
 
   if (!password || !safeCompare(password, expected)) {
     return NextResponse.json({ error: "密码错误" }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-  return setAdminCookie(res);
+  return setAdminCookie(res, remember === true);
 }
 
 // DELETE /api/admin/login — 退出登录

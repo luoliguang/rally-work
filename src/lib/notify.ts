@@ -48,7 +48,7 @@ export async function notifyNewComment(nickname: string, content: string) {
                     tag: "button",
                     text: { tag: "plain_text", content: "查看留言墙" },
                     type: "primary",
-                    url: siteUrl,
+                    url: `${siteUrl}/admin`,
                   },
                 ],
               },

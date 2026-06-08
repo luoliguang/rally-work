@@ -199,17 +199,37 @@ function NumberStepper({ value, onChange, min = 0, max }: { value: string; onCha
 
 /* ═══════════════════════════════════════════════════════════════════ login ════ */
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [pw, setPw] = useState(""); const [err, setErr] = useState("");
+  const [pw,       setPw]       = useState("");
+  const [remember, setRemember] = useState(false);
+  const [err,      setErr]      = useState("");
+
   const submit = async () => {
-    const r = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
+    const r = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pw, remember }),
+    });
     r.ok ? onLogin() : setErr("密码错误");
   };
+
   return (
     <main style={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
       <div style={{ width: 320, padding: 32, border: "1px solid var(--border)", borderRadius: 16 }}>
         <h1 style={{ color: "var(--text)", fontSize: "1rem", marginBottom: 24, fontWeight: 300, letterSpacing: "0.2em" }}>RALLY · 管理后台</h1>
         <input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()} placeholder="管理员密码" style={{ ...S.field, marginBottom: 12 }} />
         {err && <p style={{ color: "#f87171", fontSize: "0.72rem", marginBottom: 8 }}>{err}</p>}
+
+        {/* 记住我 */}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={e => setRemember(e.target.checked)}
+            style={{ accentColor: "var(--accent)", width: 14, height: 14, cursor: "pointer" }}
+          />
+          <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>记住我（30 天内免登录）</span>
+        </label>
+
         <button onClick={submit} style={{ width: "100%", padding: 10, background: "var(--accent)", color: "#07090e", border: "none", borderRadius: 8, fontWeight: 600, cursor: "pointer" }}>登录</button>
       </div>
     </main>

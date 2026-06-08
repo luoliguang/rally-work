@@ -16,11 +16,13 @@ export function unauthorized() {
 }
 
 /** Sets the admin session cookie (called after successful login). */
-export function setAdminCookie(response: NextResponse): NextResponse {
+export function setAdminCookie(response: NextResponse, remember = false): NextResponse {
   response.cookies.set(COOKIE, TOKEN, {
     httpOnly: true,
     sameSite: "strict",
-    maxAge: 60 * 60 * 24, // 24 h
+    maxAge: remember
+      ? 60 * 60 * 24 * 30  // 记住我：30 天
+      : 60 * 60 * 24,       // 普通：24 小时
     path: "/",
   });
   return response;
