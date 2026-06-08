@@ -52,74 +52,106 @@ function MediaPanel({ media }: { media: Media[] }) {
   }
 
   const [primary, ...rest] = media;
-  const extras   = rest.slice(0, 3);
-  const overflow = rest.length - extras.length;
+  const strips  = rest.slice(0, 3);           // 副图最多显示 3 张
+  const hidden  = rest.length - strips.length; // 超出的数量，显示在 +N 角标
 
   return (
     <>
       <div className="absolute inset-0 flex flex-col gap-px">
-        {/* Primary — 图片可点击放大 */}
-        <div className={rest.length > 0 ? "flex-[3] overflow-hidden" : "flex-1 overflow-hidden"}>
+
+        {/* ── 主图 ── */}
+        <div
+          className={`${strips.length > 0 ? "flex-[3]" : "flex-1"} relative overflow-hidden media-group`}
+          style={{ cursor: primary.type === "image" ? "zoom-in" : undefined }}
+          onClick={() => primary.type === "image" ? setLightboxIndex(0) : undefined}
+        >
           {primary.type === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={mediaUrl(primary.url)} alt="" loading="lazy"
-              className="w-full h-full object-cover"
-              style={{ filter: "brightness(0.85) saturate(0.88)", cursor: "zoom-in" }}
-              onClick={() => setLightboxIndex(0)}
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaUrl(primary.url)} alt="" loading="lazy" className="primary-img" />
+              <div className="zoom-hint-overlay">
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="6.5" cy="6.5" r="4.5" stroke="white" strokeWidth="1.5"/>
+                    <path d="M10 10L14 14" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                    <path d="M4.5 6.5H8.5M6.5 4.5V8.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </div>
+            </>
           ) : (
             <video src={mediaUrl(primary.url)} poster={mediaUrl(primary.poster)}
               preload="none" controls className="w-full h-full object-cover" />
           )}
         </div>
 
-        {/* Secondary strip */}
-        {extras.length > 0 && (
+        {/* ── 副图条（最多 3 格）── */}
+        {strips.length > 0 && (
           <div className="flex-1 flex gap-px overflow-hidden">
-            {extras.map((m, i) => (
-              <div
-                key={i}
-                className="relative flex-1 overflow-hidden"
-                style={{ cursor: m.type === "image" ? "zoom-in" : undefined }}
-                onClick={() => m.type === "image" && setLightboxIndex(i + 1)}
-              >
-                {m.type === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mediaUrl(m.thumb ?? m.url)} alt="" loading="lazy"
-                    className="w-full h-full object-cover"
-                    style={{ filter: "brightness(0.65) saturate(0.7)" }} />
-                ) : (
-                  <video src={mediaUrl(m.url)} poster={mediaUrl(m.poster)} preload="none" controls
-                    className="w-full h-full object-cover" />
-                )}
-                {m.type === "video" && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(0,0,0,0.5)" }}>
-                      <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
-                        <path d="M1 1l8 5-8 5V1z" />
-                      </svg>
+            {strips.map((m, i) => {
+              const isLast   = i === strips.length - 1;
+              const showMore = isLast && hidden > 0;
+              return (
+                <div
+                  key={i}
+                  className="relative flex-1 overflow-hidden media-group"
+                  style={{ cursor: "zoom-in" }}
+                  onClick={() => setLightboxIndex(i + 1)}
+                >
+                  {m.type === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaUrl(m.thumb ?? m.url)} alt="" loading="lazy" className="secondary-img" />
+                  ) : (
+                    <>
+                      <video src={mediaUrl(m.url)} poster={mediaUrl(m.poster)}
+                        preload="none" controls className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(0,0,0,0.5)" }}>
+                          <svg width="10" height="12" viewBox="0 0 10 12" fill="white">
+                            <path d="M1 1l8 5-8 5V1z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* +N 角标：点击进灯箱 */}
+                  {showMore ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1"
+                      style={{ background: "rgba(0,0,0,0.58)" }}>
+                      <span className="text-white font-light" style={{ fontSize: "1.4rem", lineHeight: 1 }}>+{hidden}</span>
+                      <span className="text-white" style={{ fontSize: "0.6rem", opacity: 0.6, letterSpacing: "0.1em" }}>查看全部</span>
                     </div>
-                  </div>
-                )}
-                {/* +N 遮罩：点击展开剩余图片 */}
-                {overflow > 0 && i === extras.length - 1 && (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ background: "rgba(0,0,0,0.55)", cursor: "zoom-in" }}
-                    onClick={e => { e.stopPropagation(); setLightboxIndex(i + 1); }}
-                  >
-                    <span className="text-white text-sm font-medium">+{overflow}</span>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    /* 放大镜提示（无 +N 时显示） */
+                    <div className="zoom-hint-overlay">
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%",
+                        background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                          <circle cx="6.5" cy="6.5" r="4.5" stroke="white" strokeWidth="1.5"/>
+                          <path d="M10 10L14 14" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                          <path d="M4.5 6.5H8.5M6.5 4.5V8.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* 灯箱 */}
       {lightboxIndex !== null && (
         <Lightbox
           media={media}

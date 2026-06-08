@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Media } from "@/lib/types";
 
@@ -18,9 +18,17 @@ const identity = (url?: string) => url ?? "";
 export function Lightbox({
   media, index, onClose, onChange, resolveUrl = identity,
 }: LightboxProps) {
+  const [closing, setClosing] = useState(false);
   const current = media[index];
   const hasPrev = index > 0;
   const hasNext = index < media.length - 1;
+
+  // 带动画的关闭
+  const handleClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(() => onClose(), 200);
+  }, [closing, onClose]);
 
   // 锁定 body 滚动
   useEffect(() => {
@@ -32,13 +40,13 @@ export function Lightbox({
   // 键盘导航
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape")                  onClose();
+      if (e.key === "Escape")                  handleClose();
       if (e.key === "ArrowLeft"  && hasPrev)   onChange(index - 1);
       if (e.key === "ArrowRight" && hasNext)   onChange(index + 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, hasPrev, hasNext, onClose, onChange]);
+  }, [index, hasPrev, hasNext, handleClose, onChange]);
 
   const navBtn = (side: "left" | "right"): React.CSSProperties => ({
     position: "absolute",
@@ -47,7 +55,6 @@ export function Lightbox({
     background: "rgba(255,255,255,0.08)",
     border: "1px solid rgba(255,255,255,0.15)",
     borderRadius: "50%", width: 44, height: 44,
-    color: "white", fontSize: "1.6rem", lineHeight: 1,
     cursor: "pointer", display: "flex",
     alignItems: "center", justifyContent: "center",
     flexShrink: 0, transition: "background 0.15s",
@@ -59,19 +66,22 @@ export function Lightbox({
       ? resolveUrl((m as { thumb?: string }).thumb ?? m.url)
       : resolveUrl((m as { poster?: string }).poster);
 
+  const out = closing ? "lb-out" : "";
+
   return createPortal(
     <div
+      className={`lb-overlay ${out}`}
       style={{
         position: "fixed", inset: 0, zIndex: 9999,
         background: "rgba(0,0,0,0.93)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       {/* 关闭按钮 */}
       <button
-        onClick={onClose}
+        onClick={handleClose}
         style={{
           position: "absolute", top: 16, right: 16,
           background: "rgba(255,255,255,0.08)",
@@ -98,6 +108,7 @@ export function Lightbox({
 
       {/* 主图区 */}
       <div
+        className={`lb-main ${out}`}
         onClick={e => e.stopPropagation()}
         style={{
           flex: 1, display: "flex",
@@ -130,10 +141,14 @@ export function Lightbox({
         )}
 
         {hasPrev && (
-          <button onClick={e => { e.stopPropagation(); onChange(index - 1); }} style={navBtn("left")}>‹</button>
+          <button onClick={e => { e.stopPropagation(); onChange(index - 1); }} style={navBtn("left")}>
+            <svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M8 2L2 8L8 14" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
         )}
         {hasNext && (
-          <button onClick={e => { e.stopPropagation(); onChange(index + 1); }} style={navBtn("right")}>›</button>
+          <button onClick={e => { e.stopPropagation(); onChange(index + 1); }} style={navBtn("right")}>
+            <svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M2 2L8 8L2 14" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
         )}
       </div>
 

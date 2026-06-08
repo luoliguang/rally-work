@@ -49,6 +49,40 @@ body  {
   .danmaku-item { animation: none !important; }
 }
 
+/* ── 媒体面板：图片 hover 效果（group 模式，避免 inline style 冲突）── */
+/* 将 filter 移到 CSS 类，确保 group:hover 可以覆盖 */
+.primary-img {
+  filter: brightness(0.85) saturate(0.88);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s ease;
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.secondary-img {
+  filter: brightness(0.65) saturate(0.7);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), filter 0.5s ease;
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.media-group:hover .primary-img   { transform: scale(1.05); filter: brightness(0.95) saturate(1); }
+.media-group:hover .secondary-img { transform: scale(1.06); filter: brightness(0.82) saturate(0.9); }
+.zoom-hint-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+}
+.media-group:hover .zoom-hint-overlay { opacity: 1; }
+
+/* ── Lightbox 动画 ──────────────────────────────────────────────────── */
+@keyframes lb-fade-in   { from { opacity:0; } to { opacity:1; } }
+@keyframes lb-fade-out  { from { opacity:1; } to { opacity:0; } }
+@keyframes lb-scale-in  { from { opacity:0; transform:scale(0.92) translateY(10px); }
+                          to   { opacity:1; transform:scale(1)    translateY(0);    } }
+@keyframes lb-scale-out { from { opacity:1; transform:scale(1)    translateY(0);    }
+                          to   { opacity:0; transform:scale(0.92) translateY(10px); } }
+.lb-overlay        { animation: lb-fade-in   0.22s ease                              forwards; }
+.lb-overlay.lb-out { animation: lb-fade-out  0.20s ease                              forwards; }
+.lb-main           { animation: lb-scale-in  0.30s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
+.lb-main.lb-out    { animation: lb-scale-out 0.18s ease                              forwards; }
+
+
 /* ── 后台成功提示 toast ────────────────────────────────────── */
 @keyframes toast-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
