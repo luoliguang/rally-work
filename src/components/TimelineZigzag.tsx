@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import type { Match, Media } from "@/lib/types";
 import { ReactionBar } from "./ReactionBar";
 import { Lightbox } from "./Lightbox";
@@ -252,15 +255,12 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
           )}
         </div>
 
-        {/* Caption — 行高从 leading-loose(2.0) 降到 1.85，减少行间堆叠感 */}
-        <p style={{
-          fontSize: "clamp(0.875rem, 1.4vw, 1rem)",
-          color: "var(--text)",
-          opacity: 0.82,
-          lineHeight: 1.85,
-        }}>
-          {match.caption}
-        </p>
+        {/* Caption — 支持 Markdown 换行、加粗、斜体 */}
+        <div className="caption-md" style={{ fontSize: "clamp(0.875rem, 1.4vw, 1rem)" }}>
+          <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>
+            {match.caption}
+          </ReactMarkdown>
+        </div>
 
         {/* Players + MVP */}
         {match.players?.length ? (

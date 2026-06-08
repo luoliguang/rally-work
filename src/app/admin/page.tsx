@@ -6,6 +6,9 @@ import {
 import { createPortal } from "react-dom";
 import type { Match, Media, VideoMedia } from "@/lib/types";
 import { Lightbox } from "@/components/Lightbox";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 
 /* ═══════════════════════════════════════════════════════════════════ styles ═══ */
 const S = {
@@ -836,6 +839,34 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
   const [error,  setError]  = useState("");
   const [roster, setRoster] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
+  const captionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Markdown 快捷键：对选中文本包裹语法，无选中则插入占位
+  const applyMd = useCallback((prefix: string, suffix: string, placeholder = "文字") => {
+    const el = captionRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end   = el.selectionEnd;
+    const sel   = el.value.slice(start, end) || placeholder;
+    const before = el.value.slice(0, start);
+    const after  = el.value.slice(end);
+    const next   = `${before}${prefix}${sel}${suffix}${after}`;
+    // 更新 state
+    setF(p => ({ ...p, caption: next }));
+    // 恢复选区（下一帧 DOM 更新后）
+    requestAnimationFrame(() => {
+      el.focus();
+      const s = start + prefix.length;
+      el.setSelectionRange(s, s + sel.length);
+    });
+  }, []);
+
+  const onCaptionKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
+    if (e.key === "b" || e.key === "B") { e.preventDefault(); applyMd("**", "**", "加粗文字"); }
+    if (e.key === "i" || e.key === "I") { e.preventDefault(); applyMd("*",  "*",  "斜体文字"); }
+  }, [applyMd]);
 
   // 加载队友名单；合并已存在于本记录但不在名单里的旧名字
   useEffect(() => {
@@ -1016,8 +1047,71 @@ function MatchForm({ initial, onSave, onCancel }: MatchFormProps) {
           <input value={f.mvp} onChange={e => set("mvp", e.target.value)} placeholder="留空自动判定" style={{ ...S.field, marginBottom: 12 }} />
         </Field>
         <Field l="文案 *">
-          <textarea value={f.caption} onChange={e => set("caption", e.target.value)} rows={4}
-            style={{ ...S.field, resize: "vertical" }} />
+          {/* 左右分栏：左侧编辑，右侧实时预览 */}
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            {/* 编辑区 */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.65rem", color: "var(--muted)", letterSpacing: "0.08em" }}>编辑 · 支持 Markdown</span>
+                {/* 快捷键工具栏 */}
+                <div style={{ display: "flex", gap: 4 }}>
+                  {([
+                    { label: "B", title: "加粗 (Ctrl+B)", prefix: "**", suffix: "**", placeholder: "加粗文字", style: { fontWeight: 700 } },
+                    { label: "I", title: "斜体 (Ctrl+I)", prefix: "*",  suffix: "*",  placeholder: "斜体文字", style: { fontStyle: "italic" } },
+                  ] as const).map(btn => (
+                    <button
+                      key={btn.label}
+                      type="button"
+                      title={btn.title}
+                      onClick={() => applyMd(btn.prefix, btn.suffix, btn.placeholder)}
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 5, width: 26, height: 22,
+                        color: "var(--text)", fontSize: "0.78rem",
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        ...btn.style,
+                      }}
+                    >{btn.label}</button>
+                  ))}
+                </div>
+              </div>
+              <textarea
+                ref={captionRef}
+                value={f.caption}
+                onChange={e => set("caption", e.target.value)}
+                onKeyDown={onCaptionKeyDown}
+                rows={6}
+                placeholder={"今天的文案...\n\n换行请按 Enter，**加粗**，*斜体*"}
+                style={{ ...S.field, resize: "vertical", flex: 1 }}
+              />
+            </div>
+            {/* 预览区 */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: "0.65rem", color: "var(--muted)", letterSpacing: "0.08em" }}>预览</span>
+              <div style={{
+                ...S.field,
+                minHeight: 120, overflowY: "auto",
+                background: "rgba(255,255,255,0.02)",
+                color: f.caption ? undefined : "var(--muted)",
+                fontSize: "0.85rem",
+              }}>
+                {f.caption
+                  ? <div className="admin-md-preview">
+                      <ReactMarkdown remarkPlugins={[remarkBreaks, remarkGfm]}>
+                        {f.caption}
+                      </ReactMarkdown>
+                    </div>
+                  : <span style={{ opacity: 0.4 }}>预览将在此显示…</span>
+                }
+              </div>
+            </div>
+          </div>
+          {/* 快捷语法提示 */}
+          <p style={{ fontSize: "0.62rem", color: "var(--muted)", opacity: 0.6, marginTop: 4 }}>
+            Enter 换行 · Ctrl+B 加粗 · Ctrl+I 斜体 · --- 分割线
+          </p>
         </Field>
       </div>
 

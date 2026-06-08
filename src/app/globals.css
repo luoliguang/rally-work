@@ -83,6 +83,22 @@ body  {
 .lb-main.lb-out    { animation: lb-scale-out 0.18s ease                              forwards; }
 
 
+/* ── Markdown 文案渲染（前端 caption）────────────────────────────── */
+.caption-md { color: var(--text); opacity: 0.82; line-height: 1.85; }
+.caption-md p          { margin-bottom: 0.75em; }
+.caption-md p:last-child { margin-bottom: 0; }
+.caption-md strong     { color: var(--accent); font-weight: 600; opacity: 1; }
+.caption-md em         { font-style: italic; opacity: 0.9; }
+.caption-md hr         { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+
+/* ── 后台 Markdown 预览面板 ──────────────────────────────────────── */
+.admin-md-preview { color: var(--text); line-height: 1.8; font-size: 0.85rem; }
+.admin-md-preview p          { margin-bottom: 0.6em; }
+.admin-md-preview p:last-child { margin-bottom: 0; }
+.admin-md-preview strong     { color: var(--accent); font-weight: 600; }
+.admin-md-preview em         { font-style: italic; opacity: 0.85; }
+.admin-md-preview hr         { border: none; border-top: 1px solid var(--border); margin: 0.8em 0; }
+
 /* ── 后台成功提示 toast ────────────────────────────────────── */
 @keyframes toast-in {
   from { opacity: 0; transform: translate(-50%, 12px); }
