@@ -10,7 +10,20 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html  { scroll-behavior: smooth; }
+html  {
+  scroll-behavior: smooth;
+  /*
+   * 响应式根字体：手机 / 笔记本保持 ~16px，大屏（1920p+）平滑放大至 22px。
+   * 所有 rem 值（inline style、Tailwind 工具类等）自动等比缩放，
+   * 无需修改任何组件文件。
+   *
+   *  375px → 15px（min）
+   * 1440px → ~16px（几乎不变，1.1vw ≈ 15.8px）
+   * 1920px → ~21px
+   * 2000px → 22px（max 封顶）
+   */
+  font-size: clamp(15px, 1.1vw, 22px);
+}
 body  {
   background: var(--bg);
   color: var(--text);
