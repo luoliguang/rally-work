@@ -44,6 +44,103 @@ function buildConnectorPath(n: number, w: number, h: number): string {
   return d;
 }
 
+// ─── Ambient Video ────────────────────────────────────────────────────────────
+// 封面视频：静音循环播放（类似动态海报），滚入视口自动开始，滚出自动暂停。
+// 点击后交由外部 onClick（通常是打开 Lightbox 有声全屏播放）。
+// 遵循 prefers-reduced-motion：用户开启减弱动效时不自动播放。
+function AmbientVideo({
+  src, poster, onClick,
+}: {
+  src: string; poster?: string; onClick: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    // 减弱动效模式：不自动播放，保留 poster 静态展示
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          // autoplay 被浏览器拦截时静默失败（保留 poster）
+          el.play().catch(() => {});
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: 0.25 },   // 露出 25% 时开始播放
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [src]);
+
+  return (
+    <>
+      {/* 视频本体：复用 primary-img 的 filter + hover scale 效果 */}
+      <video
+        ref={videoRef}
+        src={src}
+        poster={poster}
+        muted
+        loop
+        playsInline          // iOS Safari 内联播放（不全屏劫持）
+        preload="none"
+        className="primary-img"
+        style={{ cursor: "pointer" }}
+        onClick={onClick}
+      />
+
+      {/* 静音循环角标：始终显示（opacity 0.45），hover 时由 CSS 淡出 */}
+      <div
+        className="muted-badge"
+        style={{
+          position: "absolute", bottom: 10, right: 10, zIndex: 2,
+          background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)",
+          borderRadius: 5, padding: "3px 9px",
+          display: "flex", alignItems: "center", gap: 5,
+          opacity: 0.45, pointerEvents: "none",
+        }}
+      >
+        {/* 静音喇叭图标 */}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M11 5L6 9H2v6h4l5 4V5z" fill="white" />
+          <line x1="22" y1="9" x2="16" y2="15" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+          <line x1="16" y1="9" x2="22" y2="15" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+        <span style={{ fontSize: "0.5rem", color: "white", letterSpacing: "0.06em" }}>静音循环</span>
+      </div>
+
+      {/* Hover 浮层：播放按钮 + 提示文字 */}
+      <div className="zoom-hint-overlay" style={{ pointerEvents: "none" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <div style={{
+            width: 54, height: 54, borderRadius: "50%",
+            background: "rgba(0,0,0,0.52)", backdropFilter: "blur(8px)",
+            border: "1.5px solid rgba(255,255,255,0.28)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="17" height="20" viewBox="0 0 17 20" fill="white" aria-hidden>
+              <path d="M2 2l13 8-13 8V2z" />
+            </svg>
+          </div>
+          <span style={{
+            fontSize: "0.58rem", color: "rgba(255,255,255,0.85)",
+            letterSpacing: "0.15em",
+            background: "rgba(0,0,0,0.38)", backdropFilter: "blur(4px)",
+            padding: "2px 10px", borderRadius: 3,
+          }}>
+            点击观看
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Media panel ──────────────────────────────────────────────────────────────
 // Uses absolute inset-0 so it always fills its container exactly,
 // regardless of whether the parent uses height or min-height.
@@ -62,11 +159,11 @@ function MediaPanel({ media }: { media: Media[] }) {
     <>
       <div className="absolute inset-0 flex flex-col gap-px">
 
-        {/* ── 主图 ── */}
+        {/* ── 主媒体（封面）── */}
         <div
           className={`${strips.length > 0 ? "flex-[3]" : "flex-1"} relative overflow-hidden media-group`}
-          style={{ cursor: primary.type === "image" ? "zoom-in" : undefined }}
-          onClick={() => primary.type === "image" ? setLightboxIndex(0) : undefined}
+          style={{ cursor: primary.type === "image" ? "zoom-in" : "pointer" }}
+          onClick={primary.type === "image" ? () => setLightboxIndex(0) : undefined}
         >
           {primary.type === "image" ? (
             <>
@@ -88,8 +185,12 @@ function MediaPanel({ media }: { media: Media[] }) {
               </div>
             </>
           ) : (
-            <video src={mediaUrl(primary.url)} poster={mediaUrl(primary.poster)}
-              preload="none" controls className="w-full h-full object-cover" />
+            /* 封面视频：环境循环播放 + 点击进 Lightbox */
+            <AmbientVideo
+              src={mediaUrl(primary.url)}
+              poster={mediaUrl(primary.poster)}
+              onClick={() => setLightboxIndex(0)}
+            />
           )}
         </div>
 

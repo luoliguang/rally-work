@@ -83,6 +83,10 @@ body  {
 }
 .media-group:hover .zoom-hint-overlay { opacity: 1; }
 
+/* 视频封面静音角标：hover 时淡出，让播放提示浮现 */
+.muted-badge { transition: opacity 0.3s ease; }
+.media-group:hover .muted-badge { opacity: 0 !important; }
+
 /* ── Lightbox 动画 ──────────────────────────────────────────────────── */
 @keyframes lb-fade-in   { from { opacity:0; } to { opacity:1; } }
 @keyframes lb-fade-out  { from { opacity:1; } to { opacity:0; } }
