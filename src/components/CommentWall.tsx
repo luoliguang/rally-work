@@ -61,9 +61,29 @@ export function CommentWall() {
   const [status,     setStatus]     = useState<"idle"|"sending"|"done"|"error">("idle");
   // 当前"激活"的留言 ID：桌面 = hover，移动端 = 点击
   const [activeId,   setActiveId]   = useState<number | null>(null);
-  const dismissTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 记录最近一次 pointerdown 的输入类型（mouse / touch / pen）
+  const dismissTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPointerType = useRef("mouse");
+
+  // ── 输入框交互状态 ────────────────────────────────────────────────────────────
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const [focused,    setFocused]    = useState(false);  // 胶囊整体聚焦
+  const [nickFocused, setNickFocused] = useState(false); // 昵称框单独聚焦（匿名提示）
+  const [btnHovered, setBtnHovered] = useState(false);  // 发送按钮 hover
+
+  // 聚焦/失焦：用 setTimeout 防止 input 间切换时的状态闪烁
+  const handleFocus = useCallback((isNick: boolean) => {
+    setFocused(true);
+    if (isNick) setNickFocused(true);
+  }, []);
+
+  const handleBlur = useCallback((isNick: boolean) => {
+    if (isNick) setNickFocused(false);
+    setTimeout(() => {
+      if (!inputContainerRef.current?.contains(document.activeElement)) {
+        setFocused(false);
+      }
+    }, 0);
+  }, []);
 
   // 速度倍率：从 localStorage 读取，默认 medium
   const [speedKey, setSpeedKey] = useState<SpeedKey>("medium");
@@ -351,54 +371,100 @@ export function CommentWall() {
       {/* ── 输入框 ───────────────────────────────────────────────────────────── */}
       {/* 速度切换在管理员后台控制，前端不显示 */}
       <div style={{ maxWidth: "36rem", margin: "0 auto", padding: "0 clamp(1.5rem,4vw,3rem)" }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "0.5rem",
-          padding: "0.4rem 0.4rem 0.4rem 1.1rem",
-          borderRadius: "999px",
-          border: "1px solid var(--border)",
-          background: "rgba(255,255,255,0.03)",
-        }}>
+
+        {/* 胶囊容器：聚焦时边框发光 */}
+        <div
+          ref={inputContainerRef}
+          style={{
+            display: "flex", alignItems: "center", gap: "0.5rem",
+            padding: "0.4rem 0.4rem 0.4rem 1rem",
+            borderRadius: "999px",
+            border: `1px solid ${focused ? "rgba(110,231,183,0.38)" : "var(--border)"}`,
+            background: focused ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)",
+            boxShadow: focused ? "0 0 0 3px rgba(110,231,183,0.07), 0 2px 16px rgba(0,0,0,0.25)" : "none",
+            transition: "border-color 0.25s, background 0.25s, box-shadow 0.25s",
+          }}
+        >
+          {/* 昵称颜色预览圆点：空时灰色，有值时变为弹幕个人色 */}
+          <div style={{
+            width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+            background: nickname.trim() ? nicknameColor(nickname.trim()) : "rgba(255,255,255,0.18)",
+            transition: "background 0.3s",
+          }} />
+
           <input
             value={nickname}
             onChange={e => setNickname(e.target.value)}
+            onFocus={() => handleFocus(true)}
+            onBlur={() => handleBlur(true)}
             maxLength={50}
-            placeholder="昵称"
-            style={{ width: "5rem", background: "transparent", border: "none", outline: "none", color: "var(--muted)", fontSize: "0.82rem", flexShrink: 0 }}
+            placeholder="昵称（可匿名）"
+            style={{
+              width: "5.8rem", background: "transparent", border: "none", outline: "none",
+              // 有昵称时显示个人色，空时显示 muted
+              color: nickname.trim() ? nicknameColor(nickname.trim()) : "var(--muted)",
+              fontSize: "0.82rem", flexShrink: 0,
+              transition: "color 0.25s",
+            }}
           />
-          <div style={{ width: 1, height: "1.2rem", background: "var(--border)" }} />
+
+          <div style={{ width: 1, height: "1.2rem", background: "var(--border)", flexShrink: 0 }} />
+
           <input
             value={content}
             onChange={e => setContent(e.target.value)}
             onKeyDown={e => e.key === "Enter" && submit()}
+            onFocus={() => handleFocus(false)}
+            onBlur={() => handleBlur(false)}
             maxLength={300}
             placeholder="留下你想说的话…"
             style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--text)", fontSize: "0.88rem" }}
           />
+
+          {/* 字数倒计时：超过 240 字时出现，接近上限变红 */}
+          {content.length > 240 && (
+            <span style={{
+              fontSize: "0.6rem", flexShrink: 0, minWidth: "1.6rem", textAlign: "right",
+              color: content.length > 280 ? "#f87171" : "var(--muted)",
+              opacity: 0.7, transition: "color 0.2s",
+            }}>
+              {300 - content.length}
+            </span>
+          )}
+
           <button
             onClick={submit}
             disabled={!content.trim() || status === "sending"}
+            onPointerEnter={e => { if (e.pointerType === "mouse" && content.trim()) setBtnHovered(true); }}
+            onPointerLeave={() => setBtnHovered(false)}
             style={{
               flexShrink: 0,
               padding: "0.5rem 1.3rem", borderRadius: "999px", border: "none",
               background: content.trim() ? "var(--accent)" : "rgba(255,255,255,0.06)",
               color: content.trim() ? "#07090e" : "var(--muted)",
               fontSize: "0.82rem", fontWeight: 500,
-              cursor: content.trim() ? "pointer" : "default",
-              transition: "background 0.2s",
+              cursor: content.trim() && status !== "sending" ? "pointer" : "default",
+              transform: btnHovered ? "scale(1.05)" : "scale(1)",
+              boxShadow: btnHovered ? "0 0 18px rgba(110,231,183,0.45)" : "none",
+              transition: "background 0.2s, transform 0.15s, box-shadow 0.2s, color 0.2s",
             }}
           >
-            {status === "sending" ? "发送中" : "发送"}
+            {status === "sending" ? "···" : "发送"}
           </button>
         </div>
 
+        {/* 状态栏：优先级 error/done > 匿名提示（三者复用同一行，无布局抖动） */}
         <p style={{
-          textAlign: "center", marginTop: "0.9rem", fontSize: "0.75rem", height: "1rem",
-          color: status === "error" ? "#f87171" : "var(--accent)",
-          opacity: status === "done" || status === "error" ? 0.9 : 0,
-          transition: "opacity 0.3s",
+          textAlign: "center", marginTop: "0.75rem", fontSize: "0.72rem", height: "1rem",
+          color: status === "error" ? "#f87171" : (status === "done" ? "var(--accent)" : "var(--muted)"),
+          opacity: (status === "done" || status === "error") ? 0.9
+                 : (nickFocused && !nickname.trim() ? 0.55 : 0),
+          transition: "opacity 0.25s, color 0.25s",
+          pointerEvents: "none",
         }}>
-          {status === "done"  && "🙏 留言已提交，审核后将在弹幕中飘过"}
-          {status === "error" && "提交失败，请稍后重试"}
+          {status === "done"  ? "🙏 留言已提交，审核后将在弹幕中飘过"
+         : status === "error" ? "提交失败，请稍后重试"
+         : "留空昵称将以「匿名」身份发出"}
         </p>
       </div>
     </section>
