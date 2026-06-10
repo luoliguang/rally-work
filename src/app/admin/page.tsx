@@ -1390,7 +1390,7 @@ function StatsTab() {
 }
 
 interface CommentRow { id:number; nickname:string; content:string; is_approved:boolean; created_at:string }
-function CommentsTab() {
+function CommentsTab({ onPendingCount }: { onPendingCount?: (n: number) => void }) {
   const [rows, setRows] = useState<CommentRow[]>([]);
   useEffect(() => { fetch("/api/admin/comments").then(r=>r.json()).then(setRows).catch(()=>{}); }, []);
 
@@ -1406,6 +1406,9 @@ function CommentsTab() {
 
   const pending  = rows.filter(c=>!c.is_approved);
   const approved = rows.filter(c=> c.is_approved);
+
+  // 每次 pending 数量变化时通知父组件更新角标
+  useEffect(() => { onPendingCount?.(pending.length); }, [pending.length, onPendingCount]);
 
   const renderSection = (title: string, list: CommentRow[], isPending: boolean) => (
     <div key={title}>
@@ -1437,7 +1440,24 @@ type Tab = (typeof TABS)[number];
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [tab,    setTab]    = useState<Tab>("比赛管理");
+  // 待审核留言数：null = 还未加载，0 = 无待审，>0 = 显示角标
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+
   const logout = async () => { await fetch("/api/admin/login", { method:"DELETE" }); setAuthed(false); };
+
+  // 进入后台后立即请求一次，确保角标在未打开留言 tab 时也能显示
+  useEffect(() => {
+    if (!authed) return;
+    fetch("/api/admin/comments")
+      .then(r => r.json())
+      .then((rows: { is_approved: boolean }[]) => {
+        setPendingCount(rows.filter(r => !r.is_approved).length);
+      })
+      .catch(() => {});
+  }, [authed]);
+
+  // CommentsTab 操作后实时同步角标（稳定引用，避免子组件 effect 反复触发）
+  const handlePendingCount = useCallback((n: number) => setPendingCount(n), []);
 
   if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
 
@@ -1452,7 +1472,22 @@ export default function AdminPage() {
               borderBottom:`2px solid ${tab===t ? "var(--accent)" : "transparent"}`,
               color: tab===t ? "var(--accent)" : "var(--muted)",
               cursor:"pointer", fontSize:"0.82rem", transition:"color .2s",
-            }}>{t}</button>
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+              {t}
+              {/* 待审核角标：仅「留言审核」tab + 有待审条目时显示 */}
+              {t === "留言审核" && pendingCount !== null && pendingCount > 0 && (
+                <span style={{
+                  display:"inline-flex", alignItems:"center", justifyContent:"center",
+                  minWidth:17, height:17, padding:"0 4px", borderRadius:99,
+                  background:"#f87171", color:"#fff",
+                  fontSize:"0.55rem", fontWeight:700, lineHeight:1,
+                  letterSpacing:0,
+                }}>
+                  {pendingCount > 99 ? "99+" : pendingCount}
+                </span>
+              )}
+            </button>
           ))}
         </div>
         <span style={{ fontSize:"0.72rem", color:"var(--muted)", marginRight:8, opacity:0.6 }}>RALLY 管理后台</span>
@@ -1462,7 +1497,7 @@ export default function AdminPage() {
       {/* Content */}
       <div style={{ maxWidth:900, margin:"0 auto", padding:"1.5rem clamp(1rem,4vw,2.5rem)" }}>
         {tab === "比赛管理" && <MatchesTab />}
-        {tab === "留言审核" && <CommentsTab />}
+        {tab === "留言审核" && <CommentsTab onPendingCount={handlePendingCount} />}
         {tab === "统计"    && <StatsTab />}
       </div>
     </main>
