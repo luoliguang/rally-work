@@ -313,47 +313,93 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
 
         {/* Score — two layouts depending on 2-player vs multi-player */}
         <div className="mb-7">
-          {match.playerScores?.length ? (
+          {match.playerScores?.length ? (() => {
             // ── Multi-player: each person's total score ──────────────────────
-            <div className="flex flex-wrap gap-2">
-              {[...match.playerScores]
-                .sort((a, b) => b.score - a.score)
-                .map((ps, i) => {
-                  const isTop = i === 0;
-                  return (
-                    <div
-                      key={ps.player}
-                      className="flex items-center gap-2 text-xs rounded-full"
-                      style={{
-                        padding: "6px 14px",   /* 明确内边距，避免文字紧贴边框 */
-                        background: isTop ? "rgba(110,231,183,0.1)" : "rgba(255,255,255,0.05)",
-                        color: isTop ? "var(--accent)" : "var(--muted)",
-                        border: `1px solid ${isTop ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.08)"}`,
-                      }}
-                    >
-                      <span>{ps.player}</span>
-                      <span className="tabular-nums font-medium">{ps.score}</span>
-                      {isTop && <span style={{ opacity: 0.5 }}>↑</span>}
-                    </div>
-                  );
-                })}
-            </div>
-          ) : (
+            const allZero  = match.playerScores.every(ps => ps.score === 0);
+            const topScore = Math.max(...match.playerScores.map(ps => ps.score));
+            const allTied  = !allZero && match.playerScores.every(ps => ps.score === topScore);
+
+            if (allZero) {
+              return (
+                <div className="inline-flex items-center gap-2 text-xs rounded-full"
+                  style={{ padding: "6px 14px", background: "rgba(255,255,255,0.04)", color: "var(--muted)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <span style={{ opacity: 0.5 }}>—</span>
+                  <span>未计分</span>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex flex-wrap gap-2">
+                {[...match.playerScores]
+                  .sort((a, b) => b.score - a.score)
+                  .map((ps) => {
+                    const isTop = !allTied && ps.score === topScore;
+                    return (
+                      <div
+                        key={ps.player}
+                        className="flex items-center gap-2 text-xs rounded-full"
+                        style={{
+                          padding: "6px 14px",
+                          background: isTop ? "rgba(110,231,183,0.1)" : "rgba(255,255,255,0.05)",
+                          color: isTop ? "var(--accent)" : "var(--muted)",
+                          border: `1px solid ${isTop ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.08)"}`,
+                        }}
+                      >
+                        <span>{ps.player}</span>
+                        <span className="tabular-nums font-medium">{ps.score}</span>
+                        {isTop && <span style={{ opacity: 0.5 }}>↑</span>}
+                      </div>
+                    );
+                  })}
+                {allTied && (
+                  <div className="flex items-center text-xs rounded-full"
+                    style={{ padding: "6px 14px", background: "rgba(251,191,36,0.08)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
+                    平局
+                  </div>
+                )}
+              </div>
+            );
+          })() : (() => {
             // ── 2-player: us vs them ─────────────────────────────────────────
-            <div className="inline-flex items-center gap-2 text-xs rounded-full"
-              style={{
-                padding: "6px 14px",
-                background: "rgba(255,255,255,0.05)",
-                color: "var(--muted)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}>
-              <span className="tabular-nums">{match.scoreUs} · {match.scoreThem}</span>
-              <span style={{ color: displayResult === "win" ? "var(--accent)" : "#f87171" }}>
-                {displayResult === "win" ? "胜" : "负"}
-              </span>
-              {match.opponent && <span>vs {match.opponent}</span>}
-            </div>
-          )}
+            const us   = match.scoreUs;
+            const them = match.scoreThem;
+            const unrecorded = (us === undefined && them === undefined) || (us === 0 && them === 0);
+            const isDraw     = !unrecorded && us !== undefined && them !== undefined && us === them;
+
+            if (unrecorded) {
+              return (
+                <div className="inline-flex items-center gap-2 text-xs rounded-full"
+                  style={{ padding: "6px 14px", background: "rgba(255,255,255,0.04)", color: "var(--muted)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <span style={{ opacity: 0.5 }}>—</span>
+                  <span>未计分</span>
+                  {match.opponent && <span>vs {match.opponent}</span>}
+                </div>
+              );
+            }
+
+            if (isDraw) {
+              return (
+                <div className="inline-flex items-center gap-2 text-xs rounded-full"
+                  style={{ padding: "6px 14px", background: "rgba(251,191,36,0.08)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.2)" }}>
+                  <span className="tabular-nums">{us} · {them}</span>
+                  <span>平局</span>
+                  {match.opponent && <span style={{ color: "var(--muted)" }}>vs {match.opponent}</span>}
+                </div>
+              );
+            }
+
+            return (
+              <div className="inline-flex items-center gap-2 text-xs rounded-full"
+                style={{ padding: "6px 14px", background: "rgba(255,255,255,0.05)", color: "var(--muted)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <span className="tabular-nums">{us} · {them}</span>
+                <span style={{ color: displayResult === "win" ? "var(--accent)" : "#f87171" }}>
+                  {displayResult === "win" ? "胜" : "负"}
+                </span>
+                {match.opponent && <span>vs {match.opponent}</span>}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Caption — 支持 Markdown 换行、加粗、斜体 */}
