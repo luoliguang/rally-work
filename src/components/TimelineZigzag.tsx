@@ -284,6 +284,12 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
   const autoMvp    = sortedScores[0]?.player;
   const displayMvp = match.mvp ?? autoMvp;   // manual override takes priority
 
+  // 未计分时 MVP 无意义，一律隐藏
+  const isUnrecorded = match.playerScores?.length
+    ? match.playerScores.every(ps => ps.score === 0)
+    : (match.scoreUs === 0 && match.scoreThem === 0)
+      || (match.scoreUs === undefined && match.scoreThem === undefined);
+
   const recorderName   = match.players?.[0];
   const recorderScore  = sortedScores.find(s => s.player === recorderName)?.score;
   const autoResult     = recorderScore !== undefined
@@ -415,7 +421,7 @@ function EntryRow({ match, index }: { match: Match; index: number }) {
             <p className="text-xs tracking-wide" style={{ color: "var(--muted)" }}>
               {match.players.join("　")}
             </p>
-            {displayMvp && (
+            {displayMvp && !isUnrecorded && (
               <p className="text-xs" style={{ color: "var(--accent)" }}>
                 MVP · {displayMvp}
               </p>
